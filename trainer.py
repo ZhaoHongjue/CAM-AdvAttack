@@ -14,7 +14,7 @@ from tqdm import tqdm
 import os
 import logging
 import time
-import wandb
+# import wandb
 
 import utils
 
@@ -185,6 +185,7 @@ def generate_data_iter(dataset: str, batch_size: int = 128, train: bool = True):
             tfm = transforms.Compose([
                 transforms.AutoAugment(),
                 transforms.ToTensor(),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))
             ])
         return data.DataLoader(
             eval(dataset)(
