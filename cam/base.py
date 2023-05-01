@@ -53,14 +53,16 @@ class FeatureExtractor:
 
 class BaseCAM:
     def __init__(
-        self, model: nn.Module, 
+        self, 
+        model: nn.Module, 
+        dataset: str,
         target_layer: str,
         fc_layer: str = None,
         use_relu: bool = False,
         use_cuda: bool = True
     ) -> None:
         # set basic attributes
-        self.model = model
+        self.model, self.dataset = model, dataset
         self.use_relu = use_relu
         layer_names = self._get_layer_names()
         
@@ -109,11 +111,26 @@ class BaseCAM:
         if type(img) == Image.Image:
             img_np = np.array(img)
             
+            mean = {
+                'CIFAR10': (0.4914, 0.4822, 0.4465),
+                'CIFAR100': (0.5071, 0.4867, 0.4408),
+                'Imagenette': (0.485, 0.456, 0.406),
+            }
+
+            std = {
+                'CIFAR10': (0.2023, 0.1994, 0.2010),
+                'CIFAR100': (0.2675, 0.2565, 0.2761),
+                'Imagenette': (0.229, 0.224, 0.225),
+            }
+            
             # to torch.Tensor
             tfm_lst = [transforms.ToTensor()]
-            if centercrop:
-                tfm_lst.insert(0, transforms.CenterCrop(centercrop))
-            
+            if self.dataset != 'FashionMNIST':
+                tfm_lst.append(transforms.Normalize(
+                    mean[self.dataset], std[self.dataset]
+                ))
+            if self.dataset == 'Imagenette':
+                tfm_lst.insert(0, transforms.CenterCrop(160))
             tfms = transforms.Compose(tfm_lst)
             img_tensor: torch.Tensor = tfms(img).unsqueeze(0)
         else:

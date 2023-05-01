@@ -9,13 +9,16 @@ class SSCAM(BaseCAM):
     def __init__(
         self, 
         model: nn.Module, 
+        dataset: str,
         target_layer: str, 
         fc_layer: str = None, 
         use_relu: bool = False, 
-        use_cuda: bool = True, 
+        use_cuda: bool = True,
         smooth_mode: str = 'act'
     ) -> None:
-        super().__init__(model, target_layer, fc_layer, use_relu, use_cuda)
+        super().__init__(
+            model, dataset, target_layer, fc_layer, use_relu, use_cuda
+        )
         self.smooth_mode = smooth_mode
         self.use_relu = True
         
