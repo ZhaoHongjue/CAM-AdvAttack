@@ -7,3 +7,4 @@ results
 wandb
 *.png
 *.zip
+*.back

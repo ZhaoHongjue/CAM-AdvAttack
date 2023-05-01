@@ -33,20 +33,20 @@ class OnePixel(BaseAttack):
         self, 
         onepix_perturb: np.ndarray,
         img_tensor: torch.Tensor,
-        target_cls: int,
+        label: int,
     ):
         img_clone = self.add_perturb(onepix_perturb, img_tensor)
         img_clone = img_clone.to(self.device)
         with torch.no_grad():
             prob = F.softmax(
                 self.model(img_clone), dim = 1
-            ).cpu().numpy()[:, target_cls]
+            ).cpu().numpy()[:, label]
             return prob
     
     def __call__(
         self, 
         img_tensor: torch.Tensor,
-        target_cls: int, 
+        label: int, 
         maxiter: int = 10, 
         popsize: int =10
     ) -> torch.Tensor:
@@ -56,10 +56,10 @@ class OnePixel(BaseAttack):
             (0, 1), (0, 1), (0, 1),
         ]
         popsize = max(1, popsize)
-        opt_fn = lambda x: self.predict(x, img_tensor, target_cls)
+        opt_fn = lambda x: self.predict(x, img_tensor, label)
         diffevo_ret = diffevo(
-            opt_fn, bounds, maxiter = maxiter,
-            popsize = popsize
+            opt_fn, bounds, maxiter = maxiter, 
+            popsize = popsize, init = 'random'
         )
         print(diffevo_ret)
         print(diffevo_ret.x)

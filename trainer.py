@@ -44,8 +44,8 @@ class Trainer:
             f'cuda:{cuda}' if torch.cuda.is_available() else 'cpu'
         )
         
-        self.train_iter = generate_data_iter(dataset, bs, train = True)
-        self.val_iter = generate_data_iter(dataset, bs, train = False)
+        self.train_iter = generate_data_iter(dataset, bs, aug = True, train = True)
+        self.val_iter = generate_data_iter(dataset, bs, aug = True, train = False)
 
         logging.basicConfig(
             filename = self.log_pth + self.model_name + '.log', 
@@ -171,7 +171,7 @@ def create_model(model_mode: str, dataset: str) -> nn.Module:
             model.maxpool = nn.Identity()        
     return model
 
-def generate_data_iter(dataset: str, batch_size: int = 128, train: bool = True):
+def generate_data_iter(dataset: str, batch_size: int = 128, aug: bool = True, train: bool = True):
     '''
     Generate data iterator
     '''
@@ -180,13 +180,14 @@ def generate_data_iter(dataset: str, batch_size: int = 128, train: bool = True):
         os.makedirs(data_pth)
         
     if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'FashionMNIST':
-        if dataset == 'FashionMNIST': tfm = transforms.ToTensor()
-        else:
-            tfm = transforms.Compose([
-                transforms.AutoAugment(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))
-            ])
+        tfm = [transforms.ToTensor()]
+        if dataset != 'FashionMNIST':
+            tfm.append(transforms.Normalize(
+                (0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261)
+            ))
+            if aug: 
+                tfm.insert(0, transforms.AutoAugment())
+        tfm = transforms.Compose(tfm)
         return data.DataLoader(
             eval(dataset)(
                 root = data_pth, train = train, download = True, transform = tfm

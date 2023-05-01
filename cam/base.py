@@ -9,10 +9,8 @@ plt.rcParams['figure.figsize'] = (7, 7)
 from PIL import Image
 import cv2
 
-from typing import List
+from typing import List, Callable, Iterable, Dict
 from abc import abstractmethod
-
-from ..utils import FeatureExtractor, _get_result
 
 class_names = {
     'imagenette': (
@@ -24,6 +22,34 @@ class_names = {
         'Ship', 'Trunk'
     )
 }
+
+
+class FeatureExtractor:
+    def __init__(self, model: nn.Module, layers: Iterable[str]) -> None:
+        self.model = model
+        self.layers = layers
+        self._features = {layer: torch.empty(0) for layer in self.layers}
+        self.handles = []
+        
+        for layer_id in self.layers:
+            layer = dict([*self.model.named_children()])[layer_id]
+            self.handles.append(
+                layer.register_forward_hook(self.hook_save_features(layer_id))
+            )
+            
+    def hook_save_features(self, layer_id) -> Callable:
+        def hook_fn(_, __, output):
+            self._features[layer_id] = output
+        return hook_fn
+    
+    def remove_hooks(self):
+        for i in range(len(self.handles)):
+            self.handles[i].remove()
+    
+    def __call__(self, X) -> Dict[str, torch.Tensor]:
+        _ = self.model(X)
+        return self._features
+
 
 class BaseCAM:
     def __init__(
@@ -84,10 +110,7 @@ class BaseCAM:
             img_np = np.array(img)
             
             # to torch.Tensor
-            tfm_lst = [
-                transforms.Resize(224),
-                transforms.ToTensor()
-            ]
+            tfm_lst = [transforms.ToTensor()]
             if centercrop:
                 tfm_lst.insert(0, transforms.CenterCrop(centercrop))
             
@@ -152,6 +175,7 @@ class BaseCAM:
         mins = feat_reshape.min(dim = 1).values.reshape(-1, 1, 1)
         H = (featuremaps - mins) / (maxs - mins + 1e-5)
         return H
+    
     
 def _get_result(
         raw_heatmap: np.ndarray, 
