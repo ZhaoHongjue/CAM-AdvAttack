@@ -175,6 +175,16 @@ def generate_data_iter(dataset: str, batch_size: int = 128, aug: bool = True, tr
     '''
     Generate data iterator
     '''
+    mean = {
+        'CIFAR10': (0.4914, 0.4822, 0.4465),
+        'CIFAR100': (0.5071, 0.4867, 0.4408),
+    }
+
+    std = {
+        'CIFAR10': (0.2023, 0.1994, 0.2010),
+        'CIFAR100': (0.2675, 0.2565, 0.2761),
+    }
+    
     data_pth = f'./data/{dataset}/'
     if not os.path.exists(data_pth):
         os.makedirs(data_pth)
@@ -183,7 +193,7 @@ def generate_data_iter(dataset: str, batch_size: int = 128, aug: bool = True, tr
         tfm = [transforms.ToTensor()]
         if dataset != 'FashionMNIST':
             tfm.append(transforms.Normalize(
-                (0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261)
+                mean[dataset], std[dataset]
             ))
             if aug: 
                 tfm.insert(0, transforms.AutoAugment())
