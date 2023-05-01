@@ -42,8 +42,8 @@ class Trainer:
             f'cuda:{cuda}' if torch.cuda.is_available() else 'cpu'
         )
         
-        self.train_iter = generate_data_iter(dataset, bs, aug = True, train = True)
-        self.val_iter = generate_data_iter(dataset, bs, aug = True, train = False)
+        self.train_iter = generate_data_iter(dataset, bs, mode = 'train')
+        self.val_iter = generate_data_iter(dataset, bs, mode = 'val')
 
         # Set logs
         logging.basicConfig(
@@ -166,35 +166,45 @@ def create_model(model_mode: str, dataset: str) -> nn.Module:
     else: raise ValueError(f'{model_mode} is not supported!')
     return model
 
-def generate_data_iter(dataset: str, batch_size: int = 128, aug: bool = True, train: bool = True):
+def generate_data_iter(
+    dataset: str, 
+    batch_size: int = 128, 
+    mode: str = 'train'
+):
     '''
     Generate data iterator
     '''
-    mean = {
-        'CIFAR10': (0.4914, 0.4822, 0.4465),
-        'CIFAR100': (0.5071, 0.4867, 0.4408),
-        'Imagenette': (0.485, 0.456, 0.406),
-    }
-
-    std = {
-        'CIFAR10': (0.2023, 0.1994, 0.2010),
-        'CIFAR100': (0.2675, 0.2565, 0.2761),
-        'Imagenette': (0.229, 0.224, 0.225),
-    }
-    
     data_pth = f'./data/{dataset}/'
     if not os.path.exists(data_pth):
         os.makedirs(data_pth)
         
     if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'FashionMNIST':
-        tfm = [transforms.ToTensor()]
+        mean = {
+            'CIFAR10': (0.4914, 0.4822, 0.4465),
+            'CIFAR100': (0.5071, 0.4867, 0.4408),
+            'Imagenette': (0.485, 0.456, 0.406),
+        }
+        std = {
+            'CIFAR10': (0.2023, 0.1994, 0.2010),
+            'CIFAR100': (0.2675, 0.2565, 0.2761),
+            'Imagenette': (0.229, 0.224, 0.225),
+        }
         if dataset != 'FashionMNIST':
-            tfm.append(transforms.Normalize(
-                mean[dataset], std[dataset]
-            ))
-            if aug: 
-                tfm.insert(0, transforms.AutoAugment())
-        tfm = transforms.Compose(tfm)
+            if mode == 'train' or mode == 'val':
+                tfm = transforms.Compose([
+                    transforms.AutoAugment(),
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean[dataset], std[dataset]
+                    )
+                ])
+            elif mode == 'test': 
+                tfm = transforms.ToTensor()
+            else: raise ValueError            
+        else:
+            tfm = transforms.ToTensor()
+        
+        train = True if mode == 'train' else False
         return data.DataLoader(
             eval(dataset)(
                 root = data_pth, train = train, download = True, transform = tfm

@@ -9,7 +9,7 @@ plt.rcParams['figure.figsize'] = (7, 7)
 from PIL import Image
 import cv2
 
-from typing import List, Callable, Iterable, Dict
+from typing import List, Callable, Iterable, Dict, Tuple
 from abc import abstractmethod
 
 class_names = {
@@ -104,8 +104,7 @@ class BaseCAM:
         self, 
         img: Image.Image or torch.Tensor,
         mask_rate: float = 0.4, 
-        centercrop: int = None
-    ) -> np.ndarray:
+    ) -> Tuple[np.ndarray, int, float]:
         # process image
         # to np.ndarray
         if type(img) == Image.Image:
@@ -135,7 +134,7 @@ class BaseCAM:
             img_tensor: torch.Tensor = tfms(img).unsqueeze(0)
         else:
             img_tensor = img.unsqueeze(0)
-            img_np = np.transpose(img.numpy(), (1, 2, 0))
+            img_np = np.transpose(img.cpu().numpy(), (1, 2, 0))
             img_np = np.uint8(img_np * 255)
             
         img_tensor = img_tensor.to(self.device)
