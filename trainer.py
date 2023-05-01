@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from torch.utils import data
 import timm
 
-from torchvision import transforms
+from torchvision import datasets, transforms
 from torchvision.datasets import CIFAR10, FashionMNIST
 
 import numpy as np
@@ -14,15 +14,13 @@ from tqdm import tqdm
 import os
 import logging
 import time
-# import wandb
 
 import utils
 
 class Trainer:
     def __init__(
         self, model_mode: str, dataset: str, bs: int = 128, lr: float = 0.1, 
-        seed: int = 0, cuda: int = 0, use_lr_sche: bool = True, 
-        use_wandb: bool = True, **kwargs
+        seed: int = 0, cuda: int = 0, use_lr_sche: bool = True, **kwargs
     ) -> None:
         self. model_mode, self.dataset, self.seed = model_mode, dataset, seed
         # Create model
@@ -47,13 +45,12 @@ class Trainer:
         self.train_iter = generate_data_iter(dataset, bs, aug = True, train = True)
         self.val_iter = generate_data_iter(dataset, bs, aug = True, train = False)
 
+        # Set logs
         logging.basicConfig(
             filename = self.log_pth + self.model_name + '.log', 
             level = logging.INFO
         )
-        
-        self.use_wandb = False
-    
+            
     def fit(self, epochs: int = 100):
         utils.set_random_seed(self.seed)
         metrics = {
@@ -83,16 +80,6 @@ class Trainer:
                 
             for metric in list(metrics.keys()):
                 metrics[metric].append(eval(metric))
-            
-            if self.use_wandb:
-                import wandb
-                wandb.log({
-                    'epoch': epoch,
-                    'train_loss': train_loss,
-                    'test_loss': test_loss,
-                    'train_acc': train_acc,
-                    'test_acc': test_acc
-                })
             
             if epoch % 10 == 0:
                 pd.DataFrame(metrics).to_csv(
@@ -156,7 +143,8 @@ class Trainer:
         for pth in pths:
             if not os.path.exists(pth):
                 os.makedirs(pth)
-    
+
+
 def create_model(model_mode: str, dataset: str) -> nn.Module:
     '''
     Create model based on timm
@@ -168,7 +156,14 @@ def create_model(model_mode: str, dataset: str) -> nn.Module:
             model.conv1 = nn.Conv2d(
                 in_channels, 64, kernel_size = 3, stride = 1, padding = 1
             )
-            model.maxpool = nn.Identity()        
+            model.maxpool = nn.Identity()
+    elif model_mode == 'mobilenetv3_small_050':
+        if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'FashionMNIST':
+            in_channels = 1 if dataset == 'FashionMNIST' else 3
+            model.conv_stem = nn.Conv2d(
+                in_channels, 16, kernel_size = 3, stride = 1, padding = 2, bias = False
+            )       
+    else: raise ValueError(f'{model_mode} is not supported!')
     return model
 
 def generate_data_iter(dataset: str, batch_size: int = 128, aug: bool = True, train: bool = True):
@@ -178,11 +173,13 @@ def generate_data_iter(dataset: str, batch_size: int = 128, aug: bool = True, tr
     mean = {
         'CIFAR10': (0.4914, 0.4822, 0.4465),
         'CIFAR100': (0.5071, 0.4867, 0.4408),
+        'Imagenette': (0.485, 0.456, 0.406),
     }
 
     std = {
         'CIFAR10': (0.2023, 0.1994, 0.2010),
         'CIFAR100': (0.2675, 0.2565, 0.2761),
+        'Imagenette': (0.229, 0.224, 0.225),
     }
     
     data_pth = f'./data/{dataset}/'
@@ -204,8 +201,26 @@ def generate_data_iter(dataset: str, batch_size: int = 128, aug: bool = True, tr
             ),
             batch_size = batch_size, shuffle = train
         )
-    else:
-        pass
+    elif dataset == 'Imagenette':
+        tfm = transforms.Compose([
+            transforms.CenterCrop(160),
+            transforms.AutoAugment(),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean[dataset], std[dataset]
+            )
+        ])
+        folder = 'train' if train else 'val'
+        return data.DataLoader(
+            datasets.ImageFolder(
+                f'./data/Imagenette/{folder}',
+                transform = tfm
+            ),
+            batch_size = batch_size, shuffle = train
+        )
+        
+    
+    else: raise ValueError(f'{dataset} is not supported!')
 
 def get_correct_num(Y: torch.Tensor, Y_hat: torch.Tensor):
     with torch.no_grad():
