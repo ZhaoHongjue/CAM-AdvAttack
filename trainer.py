@@ -200,21 +200,21 @@ def generate_data_iter(
     '''
     Generate data iterator
     '''
+    mean = {
+        'CIFAR10': (0.4914, 0.4822, 0.4465),
+        'CIFAR100': (0.5071, 0.4867, 0.4408),
+        'Imagenette': (0.485, 0.456, 0.406),
+    }
+    std = {
+        'CIFAR10': (0.2023, 0.1994, 0.2010),
+        'CIFAR100': (0.2675, 0.2565, 0.2761),
+        'Imagenette': (0.229, 0.224, 0.225),
+    }
     data_pth = f'./data/{dataset}/'
     if not os.path.exists(data_pth):
         os.makedirs(data_pth)
         
     if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'FashionMNIST':
-        mean = {
-            'CIFAR10': (0.4914, 0.4822, 0.4465),
-            'CIFAR100': (0.5071, 0.4867, 0.4408),
-            'Imagenette': (0.485, 0.456, 0.406),
-        }
-        std = {
-            'CIFAR10': (0.2023, 0.1994, 0.2010),
-            'CIFAR100': (0.2675, 0.2565, 0.2761),
-            'Imagenette': (0.229, 0.224, 0.225),
-        }
         if dataset != 'FashionMNIST':
             if mode == 'train' or mode == 'val':
                 tfm = transforms.Compose([
@@ -238,15 +238,23 @@ def generate_data_iter(
             batch_size = batch_size, shuffle = train
         )
     elif dataset == 'Imagenette':
-        tfm = transforms.Compose([
-            transforms.CenterCrop(160),
-            transforms.AutoAugment(),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean[dataset], std[dataset]
-            )
-        ])
-        folder = 'train' if train else 'val'
+        if mode == 'train' or mode == 'val':
+            tfm = transforms.Compose([
+                transforms.CenterCrop(160),
+                transforms.AutoAugment(),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean[dataset], std[dataset]
+                )
+            ])
+        else:
+            tfm =transforms.Compose([
+                transforms.CenterCrop(160),
+                transforms.ToTensor(),
+            ])
+        if mode == 'train': folder, train = 'train', True
+        else: folder, train = 'val', False
+        
         return data.DataLoader(
             datasets.ImageFolder(
                 f'./data/Imagenette/{folder}',
