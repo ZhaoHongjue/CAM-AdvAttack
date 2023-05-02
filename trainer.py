@@ -50,7 +50,32 @@ class Trainer:
             filename = self.log_pth + self.model_name + '.log', 
             level = logging.INFO
         )
-            
+        
+        self.loaded = False
+    
+    @torch.no_grad()
+    def model_predict(self, batch_imgs: torch.Tensor):
+        if not self.loaded:
+            print('You did not load trained model!')
+        return utils.model_predict(
+            self.model, batch_imgs, self.device, 
+            normalize_mode = self.dataset
+        )
+        
+    @torch.no_grad()
+    def evaluate_model(self):
+        if not self.loaded:
+            print('You did not load trained model!')
+        self.model.to(self.device)
+        accu = utils.Accumulator(3)
+        for X, Y in self.val_iter:
+            X, Y = X.to(self.device), Y.to(self.device)
+            probs = F.softmax(self.model(X), dim = 1)
+            cls_desc = probs.topk(5, 1, True, True).indices
+            correct = cls_desc == Y.unsqueeze(-1).expand_as(cls_desc)
+            accu.add(correct[:, 0].sum(), correct.sum(), len(Y))
+        return (accu[0] / accu[-1]), (accu[1] / accu[-1])
+        
     def fit(self, epochs: int = 100):
         utils.set_random_seed(self.seed)
         metrics = {
@@ -131,7 +156,8 @@ class Trainer:
     def load(self):
         load_pth = self.model_pth + self.model_name
         self.model.load_state_dict(torch.load(load_pth, map_location = 'cpu'))
-        self.model.eval()  
+        self.model.eval()
+        self.loaded = True  
         
     def makedirs(self):
         self.results_pth = f'./results/{self.dataset}/{self.model_mode}'

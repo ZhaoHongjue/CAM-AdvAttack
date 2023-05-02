@@ -12,9 +12,10 @@ import matplotlib.pyplot as plt
 
 import os
 import yaml
-from typing import Iterable, Dict, Callable
+from typing import Iterable, Dict, Callable, Tuple
 
 import cam
+import attack
 
 classes = {
     'imagenette': (
@@ -76,8 +77,55 @@ def set_random_seed(seed: int):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
-        
 
+@torch.no_grad()
+def model_predict(
+    model: nn.Module, 
+    batch_imgs: torch.Tensor,
+    device: str or torch.device,
+    normalize_mode: str = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    '''
+    predict results
+    '''
+    if normalize_mode is not None:
+        mean = {
+            'CIFAR10': (0.4914, 0.4822, 0.4465),
+            'CIFAR100': (0.5071, 0.4867, 0.4408),
+            'Imagenette': (0.485, 0.456, 0.406),
+        }
+        std = {
+            'CIFAR10': (0.2023, 0.1994, 0.2010),
+            'CIFAR100': (0.2675, 0.2565, 0.2761),
+            'Imagenette': (0.229, 0.224, 0.225),
+        }
+        tfm = transforms.Normalize(
+            mean[normalize_mode], std[normalize_mode]
+        )
+        imgs_clone = tfm(batch_imgs.clone())
+    else:
+        imgs_clone = batch_imgs.clone()
+        
+    if type(device) == str:
+        device = torch.device(device)
+    model.to(device)
+    probs = F.softmax(model(imgs_clone.to(device)), dim = 1)
+    max_info = probs.max(dim = 1)
+    return max_info.indices.cpu(), max_info.values.cpu()
+
+def evaluate_attack(
+    labels: torch.Tensor,
+    raw_pred: torch.Tensor,
+    attacked_pred: torch.Tensor
+):
+    indices = labels == raw_pred
+    raw_acc = indices.sum() / len(labels)
+    
+    success_num = (attacked_pred[indices] != raw_pred[indices]).sum() 
+    success_rate = success_num / indices.sum()
+    
+    return raw_acc, success_rate
+    
 def plot_img(
     dataset: str,
     attack_method: str,
