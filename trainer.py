@@ -183,7 +183,7 @@ def create_model(model_mode: str, dataset: str) -> nn.Module:
                 in_channels, 64, kernel_size = 3, stride = 1, padding = 1
             )
             model.maxpool = nn.Identity()
-    elif model_mode == 'mobilenetv3_small_050':
+    elif 'mobilenet' in model_mode:
         if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'FashionMNIST':
             in_channels = 1 if dataset == 'FashionMNIST' else 3
             model.conv_stem = nn.Conv2d(
