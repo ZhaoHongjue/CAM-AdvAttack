@@ -1,3 +1,5 @@
+from .base import BaseAttack
+
 from .FGSM import FGSM
 from .FGM import FGM
 

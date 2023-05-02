@@ -47,8 +47,8 @@ class OnePixel(BaseAttack):
         self, 
         img_tensor: torch.Tensor,
         label: int, 
-        maxiter: int = 10, 
-        popsize: int =10
+        maxiter: int = 100, 
+        popsize: int = 400
     ) -> torch.Tensor:
         bounds = [
             (0, img_tensor.shape[-2]), 
@@ -61,8 +61,8 @@ class OnePixel(BaseAttack):
             opt_fn, bounds, maxiter = maxiter, 
             popsize = popsize, init = 'random'
         )
-        print(diffevo_ret)
-        print(diffevo_ret.x)
+        # print(diffevo_ret)
+        # print(diffevo_ret.x)
         onepix_perturb = diffevo_ret.x
         return self.add_perturb(onepix_perturb, img_tensor).squeeze(0).cpu()
         

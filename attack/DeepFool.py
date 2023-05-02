@@ -17,7 +17,7 @@ class DeepFool(BaseAttack):
         self, 
         img_tensor: torch.Tensor,
         num_classes: int,
-        max_iter: int
+        max_iter: int = 100
     ) -> torch.Tensor:
         img_clone, i = img_tensor.clone(), 0
         img_clone = img_clone.to(self.device)

@@ -15,7 +15,6 @@ class StepLL(BaseAttack):
         self, 
         img_tensor: torch.Tensor,
         num_class: int, 
-        step: int = 5,
         eps: float = 0.1
     ) -> torch.Tensor:
         loss_fn = nn.CrossEntropyLoss()

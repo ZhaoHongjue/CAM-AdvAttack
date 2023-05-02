@@ -60,7 +60,6 @@ class LBFGS(BaseAttack):
 			x0 = x0,
 			bounds = bounds_np.tolist(),
 		)
-        print(perturb)
         perturb = torch.tensor(
             perturb, dtype = torch.float32
         ).reshape_as(img_tensor)

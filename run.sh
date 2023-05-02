@@ -1,14 +1,14 @@
 for model in resnet18
 do
-    for dataset in FashionMNIST
+    for dataset in Imagenette
     do
         for bs in 128
         do
             for lr in 0.01
             do
-                for epochs in 300
+                for epochs in 100
                 do
-                    for seed in 0 1 2
+                    for seed in 1
                     do
                         for cuda in 0
                         do
