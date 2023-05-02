@@ -22,6 +22,7 @@ class Trainer:
         self, model_mode: str, dataset: str, bs: int = 128, lr: float = 0.1, 
         seed: int = 0, cuda: int = 0, use_lr_sche: bool = True, **kwargs
     ) -> None:
+        
         self. model_mode, self.dataset, self.seed = model_mode, dataset, seed
         # Create model
         self.model = create_model(model_mode, dataset)
