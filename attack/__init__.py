@@ -6,6 +6,7 @@ from .FGM import FGM
 from .IFGSM import IFGSM
 from .MIFGSM import MIFGSM
 from .NIFGSM import NIFGSM
+from .PGD import PGD
 
 from .IterLL import IterLL
 from .StepLL import StepLL
