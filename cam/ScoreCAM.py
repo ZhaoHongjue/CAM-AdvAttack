@@ -47,8 +47,8 @@ class ScoreCAM(BaseCAM):
         for i in range(len(img_tensor)):
             cic = self.model(mask_imgs[i]) - baseline_out
             weights = F.softmax(cic[:, preds[i]], dim = 0).reshape(-1, 1, 1)
-            saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0))
-        return torch.cat([s.unsqueeze(0) for s in saliency_maps]).cpu().detach()
+            saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0).cpu().detach())
+        return torch.cat([s.unsqueeze(0) for s in saliency_maps])
     
 
         # with torch.no_grad():
