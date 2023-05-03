@@ -22,8 +22,11 @@ class CAM(BaseCAM):
                 '`fc_layer` can not be None!'
             )
         
-    def _get_raw_saliency_map(self, img_tensor: torch.Tensor) -> torch.Tensor:
-        pred, _ = self.model_predict(img_tensor)
+    def _get_raw_saliency_map(
+        self, 
+        img: torch.Tensor,
+        pred: torch.Tensor,
+    ) -> torch.Tensor:
         fc: nn.Linear = self.model.get_submodule(self.fc_layer)
         weights =  fc.weight[pred].detach().reshape(len(pred), -1, 1, 1)
         return (weights * self.featuremaps).sum(dim = 1)

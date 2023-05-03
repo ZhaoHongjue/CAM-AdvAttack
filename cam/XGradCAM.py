@@ -18,16 +18,22 @@ class XGradCAM(BaseCAM):
             model, dataset, target_layer, fc_layer, use_relu, use_cuda
         )
         
-    def _get_raw_heatmap(self, img_tensor: torch.Tensor) -> torch.Tensor:
-        grads = self._get_grads(img_tensor, use_softmax = False)
-        featuremaps = self._get_feature_maps(img_tensor).squeeze(0)
-        
-        num = grads * featuremaps
-        den = torch.sum(
-            featuremaps, dim = (-1, -2), keepdim = True
-        ) + 1e-5
-        
-        weights = torch.sum(
-            num / den, dim = (-1, -2), keepdim = True
-        )
-        return (weights * featuremaps).sum(dim = 0)
+    def _get_raw_saliency_map(
+        self, 
+        img: torch.Tensor,
+        pred: torch.Tensor,
+    ) -> torch.Tensor:
+        saliency_maps = []
+        for i in range(len(img)):
+            grads = self._get_grads(img[i].unsqueeze(0), use_softmax = False)
+            
+            num = grads * self.featuremaps[i]
+            den = torch.sum(
+                self.featuremaps[i], dim = (-1, -2), keepdim = True
+            ) + 1e-5
+            
+            weights = torch.sum(
+                num / den, dim = (-1, -2), keepdim = True
+            )
+            saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0))
+        return torch.cat([s.unsqueeze(0) for s in saliency_maps])

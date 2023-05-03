@@ -110,7 +110,7 @@ class BaseCAM:
         handle.remove()
         self.featuremaps = self.features[0]
         
-        saliency_map = self.generate_saliency_map(img_in)
+        saliency_map = self.generate_saliency_map(img_in, pred)
         
         heatmaps = []
         for i in range(len(saliency_map)):
@@ -138,8 +138,9 @@ class BaseCAM:
     def generate_saliency_map(
         self, 
         img: torch.Tensor,
+        pred: torch.Tensor,
     ) -> Tuple[np.ndarray, int, float]:
-        raw_saliency_map: torch.Tensor = self._get_raw_saliency_map(img)
+        raw_saliency_map: torch.Tensor = self._get_raw_saliency_map(img, pred)
         if self.use_relu:
             raw_saliency_map = F.relu(raw_saliency_map)
         raw_max = torch.max(raw_saliency_map.reshape(len(img), -1), dim = 1).values.reshape(-1, 1, 1)
@@ -148,12 +149,12 @@ class BaseCAM:
         saliency_maps = transforms.Resize(img.shape[-1])(raw_saliency_map)
         return saliency_maps.cpu().numpy()
     
-    @torch.no_grad()
-    def _get_feature_maps(self, img_tensor: torch.Tensor) -> torch.Tensor:
-        return self.feature_extractor(img_tensor)[self.target_layer]
-    
     @abstractmethod
-    def _get_raw_saliency_map(self, img_tensor: torch.Tensor) -> torch.Tensor:
+    def _get_raw_saliency_map(
+        self, 
+        img: torch.Tensor,
+        pred: torch.Tensor,
+    ) -> torch.Tensor:
         raise NotImplementedError
     
     def _get_layer_names(self) -> List[str]:

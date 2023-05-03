@@ -18,10 +18,14 @@ class GradCAMpp(BaseCAM):
             model, dataset, target_layer, fc_layer, use_relu, use_cuda
         )
         
-    def _get_raw_saliency_map(self, img_tensor: torch.Tensor) -> torch.Tensor:
+    def _get_raw_saliency_map(
+        self, 
+        img: torch.Tensor,
+        pred: torch.Tensor,
+    ) -> torch.Tensor:
         saliency_maps = []
-        for i in range(len(img_tensor)):
-            grads = self._get_grads(img_tensor[i].unsqueeze(0), use_softmax = True)
+        for i in range(len(img)):
+            grads = self._get_grads(img[i].unsqueeze(0), use_softmax = True)
             grads2, grads3 = grads**2, grads**3
             a = grads2 / (2 * grads2 + torch.sum(
                 grads3 * self.featuremaps[i], dim = (-1, -2), keepdim = True
@@ -30,9 +34,3 @@ class GradCAMpp(BaseCAM):
             saliency_map = (weights * self.featuremaps[i]).sum(dim = 0)
             saliency_maps.append(saliency_map)
         return torch.cat([s.unsqueeze(0) for s in saliency_maps])
-        # featuremaps: torch.Tensor = self._get_feature_maps(img_tensor).squeeze(0)
-        # grads = self._get_grads(img_tensor, use_softmax = True)
-        # grads2, grads3 = grads**2, grads**3
-        
-        # 
-        # return (weights * featuremaps).sum(dim = 0)

@@ -22,36 +22,38 @@ class SSCAM(BaseCAM):
         self.smooth_mode = smooth_mode
         self.use_relu = True
         
-    def _get_raw_heatmap(self, img_tensor: torch.Tensor) -> torch.Tensor:
+    def _get_raw_saliency_map(
+        self, 
+        img: torch.Tensor,
+        pred: torch.Tensor,
+    ) -> torch.Tensor:
         n = 30
         with torch.no_grad():
-            logits = self.model(img_tensor)
-            probs = F.softmax(logits, dim = 1)
-            pred_idx = probs.argmax().item()
+            baseline = torch.zeros_like(img[0].unsqueeze(0)).to(self.device)
+            self.model.to(self.device)
+            baseline_out = self.model(baseline)
             
-            featuremaps: torch.Tensor = self._get_feature_maps(img_tensor).squeeze(0)
-            tfm = transforms.Resize(224)
-            upsample_featuremaps = tfm(featuremaps)
-            H = self.normalize(upsample_featuremaps)
-            
-            baseline = torch.zeros_like(img_tensor).to(self.device)
-            tmp2 = self.model(baseline)
-            
-            cic_tot = torch.zeros(featuremaps.shape[0], logits.shape[1]).to(self.device)
-            for _ in range(n):
-                if self.smooth_mode == 'act':
-                    H_noise = H + torch.normal(
-                        mean = 0, std = 0.2, size = H.shape
-                    ).to(self.device)
-                    M = img_tensor * H_noise.unsqueeze(1)
-                    cic_tot += self.model(M) - tmp2
-                elif self.smooth_mode == 'input':
-                    M = img_tensor * H.unsqueeze(1)
-                    M += torch.normal(
-                        mean = 0, std = 0.2, size = H.shape
-                    ).to(self.device)
-                    cic_tot += self.model(M) - tmp2
-            
-            cic_mean = cic_tot / n
-            weights = F.softmax(cic_mean[:, pred_idx], dim = 0).reshape(-1, 1, 1)
-            return (weights * featuremaps).sum(dim = 0)
+            upsample_featuremaps = transforms.Resize(img.shape[-1])(self.featuremaps)
+            H = self.normalize_featuremaps(upsample_featuremaps)
+        
+            saliency_maps = []
+            for i in range(len(img)):
+                cic_tot = torch.zeros((H.shape[1], baseline_out.shape[1])).to(self.device)
+                for _ in range(n):
+                    if self.smooth_mode == 'act':
+                        H_noise = H[i] + torch.normal(
+                            mean = 0, std = 0.2, size = H[i].shape
+                        ).to(self.device)
+                        M = img[i].to(self.device) * H_noise.unsqueeze(1)
+                        cic_tot += self.model(M) - baseline_out
+                    elif self.smooth_mode == 'input':
+                        M = img[i] * H[i].unsqueeze(1)
+                        M += torch.normal(
+                            mean = 0, std = 0.2, size = H[i].shape
+                        ).to(self.device)
+                        cic_tot += self.model(M) - baseline_out
+                
+                cic_mean = cic_tot / n
+                weights = F.softmax(cic_mean[:, pred[i]], dim = 0).reshape(-1, 1, 1)
+                saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0).cpu())
+            return torch.cat([s.unsqueeze(0) for s in saliency_maps])
