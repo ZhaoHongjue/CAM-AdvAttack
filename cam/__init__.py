@@ -1,4 +1,4 @@
-from .base import BaseCAM, plot_cam_img
+from .base import BaseCAM, plot_cam_img, plot_casual_metrics
 
 from .GradCAM import GradCAM
 from .GradCAMpp import GradCAMpp

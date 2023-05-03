@@ -6,20 +6,26 @@ from torchvision import transforms
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize'] = (7, 7)
-from PIL import Image
 import cv2
+
+from kornia.filters.gaussian import gaussian_blur2d
+from sklearn.metrics import auc
 
 from typing import List, Callable, Iterable, Dict, Tuple
 from abc import abstractmethod
 
 class_names = {
-    'imagenette': (
-        'tench', 'English springer', 'cassette player', 'chain saw', 'church', 
-        'French horn', 'garbage truck', 'gas pump', 'golf ball', 'parachute'
+    'Imagenette': (
+        'Tench', 'English Springer', 'Cassette Player', 'Chain Saw', 'Church', 
+        'French Horn', 'Garbage Truck', 'Gas Pump', 'Golf Ball', 'Parachute'
     ),
     'CIFAR10': (
         'Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse',
         'Ship', 'Trunk'
+    ),
+    'FashionMNIST': (
+        'T-shirt', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt',
+        'Sneaker', 'Bag', 'Ankle boot'
     )
 }
 
@@ -98,20 +104,8 @@ class BaseCAM:
         else:
             raise ValueError
         img_np = np.uint8(img_np * 255)
-        
-        img_in = self.tfm(img.clone().detach().cpu())
-        if img_in.dim() == 3:
-            img_in.unsqueeze_(0)
-        
-        self.features = []
-        target_layer = dict([*self.model.named_children()])[self.target_layer]
-        handle = target_layer.register_forward_hook(self.hook_featuremap())
-        pred, prob = self.model_predict(img_in)
-        handle.remove()
-        self.featuremaps = self.features[0]
-        
-        saliency_map = self.generate_saliency_map(img_in, pred)
-        
+                
+        saliency_map, pred, prob = self.generate_saliency_map(img)
         heatmaps = []
         for i in range(len(saliency_map)):
             heatmap = cv2.applyColorMap(
@@ -123,10 +117,78 @@ class BaseCAM:
         cam_np = np.uint8(img_np * (1 - mask_rate) + heatmaps * mask_rate)
         return cam_np, pred, prob
     
+    def calc_avg_inc_drop(self, img: torch.Tensor, use_softmax: bool = True):
+        saliency_maps, pred, _ = self.generate_saliency_map(img)
+        eval_maps = torch.as_tensor(saliency_maps).unsqueeze(1) * img
+        
+        img_normalized = self.tfm(img.clone().detach().cpu())
+        eval_maps = self.tfm(eval_maps)
+        if img_normalized.dim() == 3:
+            img_normalized.unsqueeze_(0)     
+        with torch.no_grad():
+            Y = self._get_scores(img_normalized, use_softmax)
+            O = self._get_scores(eval_maps, use_softmax)
+        Yc = Y[torch.arange(len(pred)), pred]
+        Oc = O[torch.arange(len(pred)), pred]
+        
+        tmp = Yc - Oc
+        indices = tmp < 0
+        avg_inc = indices.sum() / len(tmp)
+        
+        tmp[tmp < 0] = 0
+        avg_drop = (tmp / Yc).mean()
+        return avg_inc, avg_drop
+    
+    def calc_causal_metric(
+        self, 
+        img: torch.Tensor,
+        ins: bool = True,
+    ):
+        img_normalized: torch.Tensor = self.tfm(img.clone().detach().cpu())
+        if img_normalized.dim() == 3:
+            img_normalized.unsqueeze_(0)
+        
+        tot_pix = np.prod(img.shape[-2:])
+        change_pix = img.shape[-1] * 2
+        n_steps = (tot_pix + change_pix - 1) // change_pix
+        
+        saliency_map, pred, _ = self.generate_saliency_map(img)
+        salient_order = np.flip(
+            np.argsort(saliency_map.reshape(-1, tot_pix), axis = 1), 
+            axis = -1
+        )
+        
+        blur = lambda x: gaussian_blur2d(x, kernel_size=(51, 51), sigma=(50., 50.))
+        if ins:
+            start = blur(img_normalized)
+            finish = img_normalized.clone()
+        else:
+            start = img_normalized.clone()
+            finish = torch.zeros_like(img_normalized)
+        all_scores = np.zeros((n_steps + 1, len(img)))
+
+        for i in range(n_steps + 1):
+            with torch.no_grad():
+                scores = self._get_scores(start, use_softmax = True)
+            all_scores[i] = scores[torch.arange(len(pred)), pred].cpu().numpy()
+            
+            if i < n_steps:
+                coords = salient_order[:, (change_pix*i):(change_pix*(i + 1))]
+                indices = np.arange(len(coords)).reshape(len(coords), 1)
+                start.cpu().numpy().reshape(-1, 3, tot_pix)[indices, :, coords] = \
+                    finish.cpu().numpy().reshape(-1, 3, tot_pix)[indices, :, coords]
+                
+        x_axis = np.linspace(0, 1, n_steps + 1)
+        metrics = [auc(x_axis, all_scores[:, i]) for i in range(len(img_normalized))]
+        return np.mean(metrics), all_scores
+
     @torch.no_grad()
-    def model_predict(self, img: torch.Tensor):            
+    def model_predict(
+        self, 
+        img_normalized: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:            
         self.model.to(self.device)
-        probs = F.softmax(self.model(img.to(self.device)), dim = 1)
+        probs = F.softmax(self.model(img_normalized.to(self.device)), dim = 1)
         max_info = probs.max(dim = 1)
         return max_info.indices.cpu(), max_info.values.cpu()
     
@@ -138,21 +200,40 @@ class BaseCAM:
     def generate_saliency_map(
         self, 
         img: torch.Tensor,
-        pred: torch.Tensor,
     ) -> Tuple[np.ndarray, int, float]:
-        raw_saliency_map: torch.Tensor = self._get_raw_saliency_map(img, pred)
+        img_normalized = self.tfm(img.clone().detach().cpu())
+        if img_normalized.dim() == 3:
+            img_normalized.unsqueeze_(0)
+        
+        # extract_features
+        self.features = []
+        target_layer = dict([*self.model.named_children()])[self.target_layer]
+        handle = target_layer.register_forward_hook(self.hook_featuremap())
+        pred, prob = self.model_predict(img_normalized)
+        handle.remove()
+        self.featuremaps = self.features[0]
+        
+        raw_saliency_map: torch.Tensor = self._get_raw_saliency_map(img_normalized, pred)
         if self.use_relu:
             raw_saliency_map = F.relu(raw_saliency_map)
-        raw_max = torch.max(raw_saliency_map.reshape(len(img), -1), dim = 1).values.reshape(-1, 1, 1)
-        raw_min = torch.min(raw_saliency_map.reshape(len(img), -1), dim = 1).values.reshape(-1, 1, 1)
+        raw_max = torch.max(
+            raw_saliency_map.reshape(len(img_normalized), -1), 
+            dim = 1
+        ).values.reshape(-1, 1, 1)
+        raw_min = torch.min(
+            raw_saliency_map.reshape(len(img_normalized), -1), 
+            dim = 1
+        ).values.reshape(-1, 1, 1)
         raw_saliency_map = (raw_saliency_map - raw_min) / (raw_max - raw_min)
-        saliency_maps = transforms.Resize(img.shape[-1])(raw_saliency_map)
-        return saliency_maps.cpu().numpy()
+        saliency_maps: torch.Tensor = transforms.Resize(img_normalized.shape[-1])(raw_saliency_map)
+        saliency_maps = saliency_maps.nan_to_num(0.0)
+        
+        return saliency_maps.cpu().numpy(), pred, prob
     
     @abstractmethod
     def _get_raw_saliency_map(
         self, 
-        img: torch.Tensor,
+        img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
         raise NotImplementedError
@@ -163,17 +244,21 @@ class BaseCAM:
             layer_names.append(name)
         return layer_names
     
-    def _get_grads(self, img_tensor: torch.Tensor, use_softmax: bool):
+    def _get_scores(self, img_normalized: torch.Tensor, use_softmax = True):
+        self.model.to(self.device)
+        scores = self.model(img_normalized.to(self.device))
+        if use_softmax:
+            scores = F.softmax(scores, dim = 1)
+        return scores
+    
+    def _get_grads(self, img_normalized: torch.Tensor, use_softmax: bool):
         grad_outs = []
         handle = self.model.get_submodule(self.target_layer).register_full_backward_hook(
             lambda _, __, go: grad_outs.append(go)
         )
         
         self.model.zero_grad()
-        self.model.to(self.device)
-        scores = self.model(img_tensor.clone().to(self.device))
-        if use_softmax == 'logits':
-            scores = F.softmax(scores, dim = 1)
+        scores = self._get_scores(img_normalized, use_softmax)
         idx = scores.argmax(dim = 1)
         scores[:, idx].backward()
         
@@ -189,7 +274,7 @@ class BaseCAM:
         mins = feat_reshape.min(dim = -1).values.unsqueeze(-1).unsqueeze(-1)
         H = (upsample_featuremaps - mins) / (maxs - mins + 1e-5)
         return H
-
+        
     
 def plot_cam_img(
     cam_img_np: np.ndarray, dataset: str, class_idx: int, 
@@ -205,5 +290,36 @@ def plot_cam_img(
     
     if save_pth:
         plt.savefig(save_pth, bbox_inches = 'tight', pad_inches = 0.03)
+    else:
+        plt.show()
+        
+def plot_casual_metrics(
+    scores: np.ndarray,
+    cam_name: str,
+    ins: bool = True,
+    save_pth: str = None
+):  
+    fontsize = 18
+    tick_fontsize = 15
+    
+    x_axis = np.linspace(0, 1, len(scores))
+    plt.plot(x_axis, scores)
+    plt.fill_between(x_axis, 0, scores, alpha=0.4)
+    if ins:
+        mode = 'Insertion' 
+        xlabel = 'Pixel Inserted'
+    else:
+        mode = 'Deletion'
+        xlabel = 'Pixel Deleted'
+    fig_name = f'{cam_name} {mode} Curve'
+    plt.title(fig_name, fontsize = fontsize)
+    plt.xlabel(xlabel, fontsize = fontsize)
+    plt.tick_params(axis='both',labelsize = tick_fontsize)
+    plt.xlim([0.0, 1.00])
+    plt.ylim([0.0, 1.02])
+    
+    if save_pth is not None:
+        plt.savefig(save_pth + fig_name + 'png')
+        plt.savefig(save_pth + fig_name + 'pdf')
     else:
         plt.show()

@@ -24,7 +24,7 @@ class CAM(BaseCAM):
         
     def _get_raw_saliency_map(
         self, 
-        img: torch.Tensor,
+        img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
         fc: nn.Linear = self.model.get_submodule(self.fc_layer)

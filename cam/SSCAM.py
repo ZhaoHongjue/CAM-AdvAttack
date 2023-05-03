@@ -24,30 +24,30 @@ class SSCAM(BaseCAM):
         
     def _get_raw_saliency_map(
         self, 
-        img: torch.Tensor,
+        img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
         n = 30
         with torch.no_grad():
-            baseline = torch.zeros_like(img[0].unsqueeze(0)).to(self.device)
+            baseline = torch.zeros_like(img_normalized[0].unsqueeze(0)).to(self.device)
             self.model.to(self.device)
             baseline_out = self.model(baseline)
             
-            upsample_featuremaps = transforms.Resize(img.shape[-1])(self.featuremaps)
+            upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
             H = self.normalize_featuremaps(upsample_featuremaps)
         
             saliency_maps = []
-            for i in range(len(img)):
+            for i in range(len(img_normalized)):
                 cic_tot = torch.zeros((H.shape[1], baseline_out.shape[1])).to(self.device)
                 for _ in range(n):
                     if self.smooth_mode == 'act':
                         H_noise = H[i] + torch.normal(
                             mean = 0, std = 0.2, size = H[i].shape
                         ).to(self.device)
-                        M = img[i].to(self.device) * H_noise.unsqueeze(1)
+                        M = img_normalized[i].to(self.device) * H_noise.unsqueeze(1)
                         cic_tot += self.model(M) - baseline_out
                     elif self.smooth_mode == 'input':
-                        M = img[i] * H[i].unsqueeze(1)
+                        M = img_normalized[i] * H[i].unsqueeze(1)
                         M += torch.normal(
                             mean = 0, std = 0.2, size = H[i].shape
                         ).to(self.device)

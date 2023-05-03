@@ -23,21 +23,21 @@ class ISCAM(BaseCAM):
         
     def _get_raw_saliency_map(
         self, 
-        img: torch.Tensor,
+        img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
         n = 10
         with torch.no_grad():
-            upsample_featuremaps = transforms.Resize(img.shape[-1])(self.featuremaps)
+            upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
             H = self.normalize_featuremaps(upsample_featuremaps)
-            mask_imgs = img.unsqueeze(1).to(self.device) * H.unsqueeze(2).to(self.device)
+            mask_imgs = img_normalized.unsqueeze(1).to(self.device) * H.unsqueeze(2).to(self.device)
             
-            baseline = torch.zeros_like(img[0].unsqueeze(0)).to(self.device)
+            baseline = torch.zeros_like(img_normalized[0].unsqueeze(0)).to(self.device)
             self.model.to(self.device)
             baseline_out = self.model(baseline)
             saliency_maps = []
             
-            for i in range(len(img)):
+            for i in range(len(img_normalized)):
                 cic_tot = torch.zeros(
                     self.featuremaps[i].shape[0], baseline_out.shape[1]
                 ).to(self.device)

@@ -20,18 +20,18 @@ class SmoothGradCAMpp(BaseCAM):
         
     def _get_raw_saliency_map(
         self, 
-        img: torch.Tensor,
+        img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
         saliency_maps = []
-        for i in range(len(img)):
+        for i in range(len(img_normalized)):
             grads_lst = [[], [], []]
             n = 100
 
             for _ in range(n):
-                img_noise = img[i].to(self.device) \
+                img_noise = img_normalized[i].to(self.device) \
                     + torch.normal(
-                    mean = 0, std = 0.5, size = img[i].shape
+                    mean = 0, std = 0.5, size = img_normalized[i].shape
                 ).to(self.device)
                 grads = self._get_grads(
                     img_noise.unsqueeze(0), use_softmax = True
