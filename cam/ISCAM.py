@@ -21,28 +21,31 @@ class ISCAM(BaseCAM):
         )
         self.use_relu = True
         
-    def _get_raw_heatmap(self, img_tensor: torch.Tensor) -> torch.Tensor:
+    def _get_raw_saliency_map(
+        self, 
+        img: torch.Tensor,
+        pred: torch.Tensor,
+    ) -> torch.Tensor:
         n = 10
         with torch.no_grad():
-            logits = self.model(img_tensor)
-            probs = F.softmax(logits, dim = 1)
-            pred_idx = probs.argmax().item()
+            upsample_featuremaps = transforms.Resize(img.shape[-1])(self.featuremaps)
+            H = self.normalize_featuremaps(upsample_featuremaps)
+            mask_imgs = img.unsqueeze(1).to(self.device) * H.unsqueeze(2).to(self.device)
             
-            featuremaps: torch.Tensor = self._get_feature_maps(img_tensor).squeeze(0)
-            tfm = transforms.Resize(224)
-            upsample_featuremaps = tfm(featuremaps)
-            H = self.normalize(upsample_featuremaps)
-            mask_imgs = img_tensor * H.unsqueeze(1)
+            baseline = torch.zeros_like(img[0].unsqueeze(0)).to(self.device)
+            self.model.to(self.device)
+            baseline_out = self.model(baseline)
+            saliency_maps = []
             
-            baseline = torch.zeros_like(img_tensor).to(self.device)
-            tmp2 = self.model(baseline)
-            
-            cic_tot = torch.zeros(featuremaps.shape[0], logits.shape[1]).to(self.device)
-            M = torch.zeros_like(mask_imgs)
-            for i in range(n):
-                M = M + mask_imgs * i / n
-                cic_tot += self.model(M) - tmp2
-                
-            cic_mean = cic_tot / n
-            weights = F.softmax(cic_mean[:, pred_idx], dim = 0).reshape(-1, 1, 1)
-            return (weights * featuremaps).sum(dim = 0)
+            for i in range(len(img)):
+                cic_tot = torch.zeros(
+                    self.featuremaps[i].shape[0], baseline_out.shape[1]
+                ).to(self.device)
+                M = torch.zeros_like(mask_imgs[i])
+                for j in range(n):
+                    M = M + mask_imgs[i] * j / n
+                    cic_tot += self.model(M) - baseline_out
+                cic_mean = cic_tot / n
+                weights = F.softmax(cic_mean[:, pred[i]], dim = 0).reshape(-1, 1, 1)
+                saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0)) 
+            return torch.cat([s.unsqueeze(0) for s in saliency_maps])
