@@ -27,7 +27,7 @@ class SSCAM(BaseCAM):
         img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
-        n = 30
+        n = 5
         with torch.no_grad():
             baseline = torch.zeros_like(img_normalized[0].unsqueeze(0)).to(self.device)
             self.model.to(self.device)
@@ -35,25 +35,52 @@ class SSCAM(BaseCAM):
             
             upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
             H = self.normalize_featuremaps(upsample_featuremaps)
-        
-            saliency_maps = []
-            for i in range(len(img_normalized)):
-                cic_tot = torch.zeros((H.shape[1], baseline_out.shape[1])).to(self.device)
-                for _ in range(n):
-                    if self.smooth_mode == 'act':
-                        H_noise = H[i] + torch.normal(
-                            mean = 0, std = 0.2, size = H[i].shape
-                        ).to(self.device)
-                        M = img_normalized[i].to(self.device) * H_noise.unsqueeze(1)
-                        cic_tot += self.model(M) - baseline_out
-                    elif self.smooth_mode == 'input':
-                        M = img_normalized[i] * H[i].unsqueeze(1)
-                        M += torch.normal(
-                            mean = 0, std = 0.2, size = H[i].shape
-                        ).to(self.device)
-                        cic_tot += self.model(M) - baseline_out
+            cic_tot = torch.zeros((
+                H.shape[0], H.shape[1], baseline_out.shape[1]
+            )).to(self.device)
+            
+            for _ in range(n):
+                if self.smooth_mode == 'act':
+                    H_noise = H + torch.normal(
+                        mean = 0, std = 2, size = H.shape
+                    ).to(self.device)
+                    M = img_normalized.unsqueeze(1).to(self.device) * H_noise.unsqueeze(2)
+                    for i in range(len(img_normalized)):
+                        cic_tot[i] += self.model(M[i]) - baseline_out
+                elif self.smooth_mode == 'input':
+                    M = img_normalized.unsqueeze(1).to(self.device) * H.unsqueeze(2)
+                    M += torch.normal(
+                        mean = 0, std = 0.2, size = M.shape
+                    ).to(self.device)
+                    for i in range(len(img_normalized)):
+                        cic_tot[i] += self.model(M[i]) - baseline_out                
+            
+            cic_mean = cic_tot / n   
+            indices1 = torch.arange(len(pred)).reshape(-1, 1).to(self.device)
+            indices2 = pred.reshape(-1, 1).to(self.device)
+            weights = F.softmax(
+                cic_mean[indices1, :, indices2].squeeze(1), 
+                dim = 1
+            ).unsqueeze(-1).unsqueeze(-1)
+            return (weights * self.featuremaps).sum(dim = 1)
+            # saliency_maps = []
+            # for i in range(len(img_normalized)):
+            #     cic_tot = torch.zeros((H.shape[1], baseline_out.shape[1])).to(self.device)
+            #     for _ in range(n):
+            #         if self.smooth_mode == 'act':
+            #             H_noise = H[i] + torch.normal(
+            #                 mean = 0, std = 0.2, size = H[i].shape
+            #             ).to(self.device)
+            #             M = img_normalized[i].to(self.device) * H_noise.unsqueeze(1)
+            #             cic_tot += self.model(M) - baseline_out
+            #         elif self.smooth_mode == 'input':
+            #             M = img_normalized[i] * H[i].unsqueeze(1)
+            #             M += torch.normal(
+            #                 mean = 0, std = 0.2, size = H[i].shape
+            #             ).to(self.device)
+            #             cic_tot += self.model(M) - baseline_out
                 
-                cic_mean = cic_tot / n
-                weights = F.softmax(cic_mean[:, pred[i]], dim = 0).reshape(-1, 1, 1)
-                saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0).cpu())
-            return torch.cat([s.unsqueeze(0) for s in saliency_maps])
+            #     cic_mean = cic_tot / n
+            #     weights = F.softmax(cic_mean[:, pred[i]], dim = 0).reshape(-1, 1, 1)
+            #     saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0).cpu())
+            # return torch.cat([s.unsqueeze(0) for s in saliency_maps])

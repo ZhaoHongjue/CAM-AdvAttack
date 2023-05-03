@@ -23,10 +23,6 @@ class GradCAM(BaseCAM):
         img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
-        saliency_maps = []
-        for i in range(len(img_normalized)):
-            grad = self._get_grads(img_normalized[i].unsqueeze(0), use_softmax = False)
-            weights = torch.mean(grad, dim = (-1, -2), keepdim = True)
-            saliency_map = (weights * self.featuremaps[i]).sum(dim = 0)
-            saliency_maps.append(saliency_map)
-        return torch.cat([s.unsqueeze(0) for s in saliency_maps])
+        grads = self._get_grads(img_normalized, pred, use_softmax = False)
+        weights = torch.mean(grads, dim = (-1, -2), keepdim = True)
+        return (weights * self.featuremaps).sum(dim = 1)

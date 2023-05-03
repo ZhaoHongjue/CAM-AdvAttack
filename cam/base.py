@@ -81,7 +81,7 @@ class BaseCAM:
         
         if cuda is not None:
             self.device = torch.device(
-                f'cuda{cuda}' if torch.cuda.is_available() else 'cpu'
+                f'cuda:{cuda}' if torch.cuda.is_available() else 'cpu'
             )
         else:
             self.device = torch.device('cpu')
@@ -214,7 +214,7 @@ class BaseCAM:
         handle = target_layer.register_forward_hook(self.hook_featuremap())
         pred, prob = self.model_predict(img_normalized)
         handle.remove()
-        self.featuremaps = self.features[0]
+        self.featuremaps: torch.Tensor = self.features[0]
         
         raw_saliency_map: torch.Tensor = self._get_raw_saliency_map(img_normalized, pred)
         if self.use_relu:
@@ -254,7 +254,7 @@ class BaseCAM:
             scores = F.softmax(scores, dim = 1)
         return scores
     
-    def _get_grads(self, img_normalized: torch.Tensor, use_softmax: bool):
+    def _get_grads(self, img_normalized: torch.Tensor, pred: torch.Tensor, use_softmax: bool):
         grad_outs = []
         handle = self.model.get_submodule(self.target_layer).register_full_backward_hook(
             lambda _, __, go: grad_outs.append(go)
@@ -262,9 +262,8 @@ class BaseCAM:
         
         self.model.zero_grad()
         scores = self._get_scores(img_normalized, use_softmax)
-        idx = scores.argmax(dim = 1)
-        scores[:, idx].backward()
-        
+        gathered_scores = scores.gather(1, pred.to(self.device).reshape(-1, 1)).sum()
+        gathered_scores.backward()
         handle.remove()
         return grad_outs[0][0].squeeze(0)
     

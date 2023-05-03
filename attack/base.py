@@ -13,7 +13,7 @@ class BaseAttack:
         self.model = model
         if cuda is not None:
             self.device = torch.device(
-                f'cuda{cuda}' if torch.cuda.is_available() else 'cpu'
+                f'cuda:{cuda}' if torch.cuda.is_available() else 'cpu'
             )
         else:
             self.device = torch.device('cpu')

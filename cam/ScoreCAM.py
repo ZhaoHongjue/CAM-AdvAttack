@@ -40,16 +40,22 @@ class ScoreCAM(BaseCAM):
         img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
-        with torch.no_grad():
-            upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
-            H = self.normalize_featuremaps(upsample_featuremaps)
-            mask_imgs = img_normalized.unsqueeze(1).to(self.device) * H.unsqueeze(2).to(self.device)
-            baseline = torch.zeros_like(img_normalized[0].unsqueeze(0)).to(self.device)
-            self.model.to(self.device)
-            baseline_out = self.model(baseline)
-            saliency_maps = []
-            for i in range(len(img_normalized)):
-                cic = self.model(mask_imgs[i]) - baseline_out
-                weights = F.softmax(cic[:, pred[i]], dim = 0).reshape(-1, 1, 1)
-                saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0).cpu())
-        return torch.cat([s.unsqueeze(0) for s in saliency_maps])
+        upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
+        cics = self._get_cic(img_normalized, upsample_featuremaps)
+        indices1 = torch.arange(len(pred)).reshape(-1, 1).to(self.device)
+        indices2 = pred.reshape(-1, 1).to(self.device)
+        weights = F.softmax(cics[indices1, :, indices2].squeeze(1), dim = 1).unsqueeze(-1).unsqueeze(-1)
+        return (weights * self.featuremaps).sum(dim = 1)
+        # with torch.no_grad():
+        #     upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
+        #     H = self.normalize_featuremaps(upsample_featuremaps)
+        #     mask_imgs = img_normalized.unsqueeze(1).to(self.device) * H.unsqueeze(2).to(self.device)
+        #     baseline = torch.zeros_like(img_normalized[0].unsqueeze(0)).to(self.device)
+        #     self.model.to(self.device)
+        #     baseline_out = self.model(baseline)
+        #     saliency_maps = []
+        #     for i in range(len(img_normalized)):
+        #         cic = self.model(mask_imgs[i]) - baseline_out
+        #         weights = F.softmax(cic[:, pred[i]], dim = 0).reshape(-1, 1, 1)
+        #         saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0).cpu())
+        # return torch.cat([s.unsqueeze(0) for s in saliency_maps])

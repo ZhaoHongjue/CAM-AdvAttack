@@ -23,8 +23,10 @@ class LayerCAM(BaseCAM):
         img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
-        saliency_maps = []
-        for i in range(len(img_normalized)):
-            grads = self._get_grads(img_normalized[i].unsqueeze(0), use_softmax = False)
-            saliency_maps.append((F.relu(grads) * self.featuremaps[i]).sum(dim = 0))
-        return torch.cat([s.unsqueeze(0) for s in saliency_maps])
+        grads = self._get_grads(img_normalized, pred, use_softmax = False)
+        return (F.relu(grads) * self.featuremaps).sum(dim = 1)
+        # saliency_maps = []
+        # for i in range(len(img_normalized)):
+        #     grads = self._get_grads(img_normalized[i].unsqueeze(0), use_softmax = False)
+        #     saliency_maps.append((F.relu(grads) * self.featuremaps[i]).sum(dim = 0))
+        # return torch.cat([s.unsqueeze(0) for s in saliency_maps])

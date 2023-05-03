@@ -2,7 +2,7 @@ from .base import BaseCAM, plot_cam_img, plot_casual_metrics
 
 from .GradCAM import GradCAM
 from .GradCAMpp import GradCAMpp
-from .SmoothGradCAMpp import SmoothGradCAMpp
+from .SmoothGradCAMpp import SMGradCAMpp
 from .XGradCAM import XGradCAM
 from .LayerCAM import LayerCAM
 

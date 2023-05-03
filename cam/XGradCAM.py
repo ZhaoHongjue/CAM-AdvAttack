@@ -23,17 +23,22 @@ class XGradCAM(BaseCAM):
         img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
-        saliency_maps = []
-        for i in range(len(img_normalized)):
-            grads = self._get_grads(img_normalized[i].unsqueeze(0), use_softmax = False)
+        grads = self._get_grads(img_normalized, pred, use_softmax = False)
+        num = grads * self.featuremaps
+        den = torch.sum(self.featuremaps, dim = (-1, -2), keepdim = True) + 1e-8
+        weights = torch.sum(num / den, dim = (-1, -2), keepdim = True)
+        return (weights * self.featuremaps).sum(dim = 1)
+        # saliency_maps = []
+        # for i in range(len(img_normalized)):
+        #     grads = self._get_grads(img_normalized[i].unsqueeze(0), use_softmax = False)
             
-            num = grads * self.featuremaps[i]
-            den = torch.sum(
-                self.featuremaps[i], dim = (-1, -2), keepdim = True
-            ) + 1e-5
+        #     num = grads * self.featuremaps[i]
+        #     den = torch.sum(
+        #         self.featuremaps[i], dim = (-1, -2), keepdim = True
+        #     ) + 1e-5
             
-            weights = torch.sum(
-                num / den, dim = (-1, -2), keepdim = True
-            )
-            saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0))
-        return torch.cat([s.unsqueeze(0) for s in saliency_maps])
+        #     weights = torch.sum(
+        #         num / den, dim = (-1, -2), keepdim = True
+        #     )
+        #     saliency_maps.append((weights * self.featuremaps[i]).sum(dim = 0))
+        # return torch.cat([s.unsqueeze(0) for s in saliency_maps])
