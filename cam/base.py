@@ -131,12 +131,15 @@ class BaseCAM:
         Yc = Y[torch.arange(len(pred)), pred]
         Oc = O[torch.arange(len(pred)), pred]
         
+        # Average Increase
         tmp = Yc - Oc
         indices = tmp < 0
         avg_inc = indices.sum() / len(tmp)
         
+        # Average Drop
         tmp[tmp < 0] = 0
         avg_drop = (tmp / Yc).mean()
+
         return avg_inc, avg_drop
     
     def calc_causal_metric(
@@ -165,7 +168,7 @@ class BaseCAM:
         else:
             start = img_normalized.clone()
             finish = torch.zeros_like(img_normalized)
-        all_scores = np.zeros((n_steps + 1, len(img)))
+        all_scores = np.zeros((n_steps + 1, len(img_normalized)))
 
         for i in range(n_steps + 1):
             with torch.no_grad():
@@ -175,8 +178,8 @@ class BaseCAM:
             if i < n_steps:
                 coords = salient_order[:, (change_pix*i):(change_pix*(i + 1))]
                 indices = np.arange(len(coords)).reshape(len(coords), 1)
-                start.cpu().numpy().reshape(-1, 3, tot_pix)[indices, :, coords] = \
-                    finish.cpu().numpy().reshape(-1, 3, tot_pix)[indices, :, coords]
+                start.cpu().numpy().reshape(len(img_normalized), -1, tot_pix)[indices, :, coords] = \
+                    finish.cpu().numpy().reshape(len(img_normalized), -1, tot_pix)[indices, :, coords]
                 
         x_axis = np.linspace(0, 1, n_steps + 1)
         metrics = [auc(x_axis, all_scores[:, i]) for i in range(len(img_normalized))]
@@ -226,7 +229,7 @@ class BaseCAM:
         ).values.reshape(-1, 1, 1)
         raw_saliency_map = (raw_saliency_map - raw_min) / (raw_max - raw_min)
         saliency_maps: torch.Tensor = transforms.Resize(img_normalized.shape[-1])(raw_saliency_map)
-        saliency_maps = saliency_maps.nan_to_num(0.0)
+        # saliency_maps = saliency_maps.nan_to_num(0.0)
         
         return saliency_maps.cpu().numpy(), pred, prob
     

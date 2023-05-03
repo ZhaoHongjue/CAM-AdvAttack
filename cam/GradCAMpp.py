@@ -27,9 +27,10 @@ class GradCAMpp(BaseCAM):
         for i in range(len(img_normalized)):
             grads = self._get_grads(img_normalized[i].unsqueeze(0), use_softmax = True)
             grads2, grads3 = grads**2, grads**3
-            a = grads2 / (2 * grads2 + torch.sum(
+            den = 2 * grads2 + torch.sum(
                 grads3 * self.featuremaps[i], dim = (-1, -2), keepdim = True
-            ))
+            )
+            a = grads2 / (den + 1e-8)
             weights = torch.sum(a * F.relu(grads), dim = (-1, -2), keepdim = True)
             saliency_map = (weights * self.featuremaps[i]).sum(dim = 0)
             saliency_maps.append(saliency_map)
