@@ -12,10 +12,10 @@ class CAM(BaseCAM):
         target_layer: str, 
         fc_layer: str = None, 
         use_relu: bool = False, 
-        use_cuda: bool = True
+        cuda: int = None
     ) -> None:
         super().__init__(
-            model, dataset, target_layer, fc_layer, use_relu, use_cuda
+            model, dataset, target_layer, fc_layer, use_relu, cuda
         )
         if fc_layer is None:
             raise ValueError(

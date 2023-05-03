@@ -4,8 +4,8 @@ from torch import nn
 from .base import BaseAttack
 
 class FGSM(BaseAttack):
-    def __init__(self, model: nn.Module) -> None:
-        super().__init__(model)
+    def __init__(self, model: nn.Module, cuda: int = None) -> None:
+        super().__init__(model, cuda)
     
     def __call__(
         self, 

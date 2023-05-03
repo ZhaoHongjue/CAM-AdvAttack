@@ -11,8 +11,8 @@ class UniPerturb(BaseAttack):
     
     URL: https://openaccess.thecvf.com/content_cvpr_2017/html/Moosavi-Dezfooli_Universal_Adversarial_Perturbations_CVPR_2017_paper.html
     '''
-    def __init__(self, model: nn.Module) -> None:
-        super().__init__(model)
+    def __init__(self, model: nn.Module, cuda: int = None) -> None:
+        super().__init__(model, cuda)
              
     def project_perturb(
         self, 

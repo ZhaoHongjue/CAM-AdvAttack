@@ -52,7 +52,7 @@ class BaseCAM:
         target_layer: str,
         fc_layer: str = None,
         use_relu: bool = False,
-        use_cuda: bool = True
+        cuda: int = None
     ) -> None:
         # set basic attributes
         self.model = model
@@ -79,9 +79,9 @@ class BaseCAM:
                     f'{fc_layer} is not a `nn.Linear` instance!'
                 )
         
-        if use_cuda:
+        if cuda is not None:
             self.device = torch.device(
-                'cuda' if torch.cuda.is_available() else 'cpu'
+                f'cuda{cuda}' if torch.cuda.is_available() else 'cpu'
             )
         else:
             self.device = torch.device('cpu')

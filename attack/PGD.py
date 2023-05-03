@@ -10,8 +10,8 @@ class PGD(BaseAttack):
     
     URL: http://arxiv.org/abs/1706.06083
     '''
-    def __init__(self, model: nn.Module) -> None:
-        super().__init__(model)
+    def __init__(self, model: nn.Module, cuda: int = None) -> None:
+        super().__init__(model, cuda)
         
     def __call__(
         self, 

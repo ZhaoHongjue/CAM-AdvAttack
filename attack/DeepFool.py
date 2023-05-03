@@ -10,8 +10,8 @@ class DeepFool(BaseAttack):
     
     URL: https://openaccess.thecvf.com/content_cvpr_2016/html/Moosavi-Dezfooli_DeepFool_A_Simple_CVPR_2016_paper.html
     '''
-    def __init__(self, model: nn.Module) -> None:
-        super().__init__(model)
+    def __init__(self, model: nn.Module, cuda: int = None) -> None:
+        super().__init__(model, cuda)
         
     def __call__(
         self, 

@@ -8,8 +8,8 @@ class StepLL(BaseAttack):
     '''
     Adversarial Machine Learning at Scale
     '''
-    def __init__(self, model: nn.Module, use_cuda: bool = True) -> None:
-        super().__init__(model, use_cuda)
+    def __init__(self, model: nn.Module, cuda: int = None) -> None:
+        super().__init__(model, cuda)
         
     def __call__(
         self, 

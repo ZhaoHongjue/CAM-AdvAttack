@@ -11,8 +11,8 @@ class OnePixel(BaseAttack):
     '''
     Paper: One Pixel Attack for Fooling Deep Neural Networks
     '''
-    def __init__(self, model: nn.Module) -> None:
-        super().__init__(model)  
+    def __init__(self, model: nn.Module, cuda: int = None) -> None:
+        super().__init__(model, cuda)
         
     def add_perturb(
         self, 

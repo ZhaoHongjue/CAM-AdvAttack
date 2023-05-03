@@ -8,11 +8,13 @@ class BaseAttack:
     def __init__(
         self,
         model: nn.Module,
-        use_cuda: bool = True
+        cuda: int = None
     ) -> None:
         self.model = model
-        if use_cuda and torch.cuda.is_available():
-            self.device = torch.device('cuda')
+        if cuda is not None:
+            self.device = torch.device(
+                f'cuda{cuda}' if torch.cuda.is_available() else 'cpu'
+            )
         else:
             self.device = torch.device('cpu')
         self.model.to(self.device)
