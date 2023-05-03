@@ -253,15 +253,14 @@ def generate_data_iter(
                 transforms.CenterCrop(160),
                 transforms.ToTensor(),
             ])
-        if mode == 'train': folder, train = 'train', True
-        else: folder, train = 'val', False
+        folder = 'train' if mode == 'train' else 'val'
         
         return data.DataLoader(
             datasets.ImageFolder(
                 f'./data/Imagenette/{folder}',
                 transform = tfm
             ),
-            batch_size = batch_size, shuffle = train
+            batch_size = batch_size, shuffle = True
         )
         
     
