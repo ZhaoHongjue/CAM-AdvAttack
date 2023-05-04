@@ -40,7 +40,6 @@ class SSCAM(BaseCAM):
             ))
             
             for _ in range(n):
-                print(n)
                 if self.smooth_mode == 'act':
                     H_noise = H + torch.normal(
                         mean = 0, std = 2, size = H.shape

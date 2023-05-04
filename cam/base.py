@@ -5,7 +5,7 @@ from torchvision import transforms
 
 import numpy as np
 import matplotlib.pyplot as plt
-plt.rcParams['figure.figsize'] = (7, 7)
+plt.rcParams['figure.figsize'] = (5, 5)
 import cv2
 
 from kornia.filters.gaussian import gaussian_blur2d
@@ -95,8 +95,14 @@ class BaseCAM:
         self, 
         img: torch.Tensor,
         mask_rate: float = 0.4, 
+        metric: bool = True
     ) -> Tuple[np.ndarray, int, float]:
         # Generate Numpy Image
+        metrics = {}
+        img_normalized = self.tfm(img.clone().detach().cpu())
+        if img_normalized.dim() == 3:
+            img_normalized.unsqueeze_(0)
+            
         if img.dim() == 4:
             img_np = np.transpose(img.cpu().numpy(), (0, 2, 3, 1))
         elif img.dim() == 3:
@@ -105,7 +111,23 @@ class BaseCAM:
             raise ValueError
         img_np = np.uint8(img_np * 255)
                 
-        saliency_map, pred, prob = self.generate_saliency_map(img)
+        saliency_map, pred, prob = self.generate_saliency_map(img_normalized)
+        if metric:
+            avg_inc, avg_drop = self.calc_avg_inc_drop(
+                img_normalized, saliency_map, pred, use_softmax = True
+            )
+            inse, inse_score = self.calc_causal_metric(
+                img_normalized, saliency_map, pred, ins = True
+            )
+            dele, dele_score = self.calc_causal_metric(
+                img_normalized, saliency_map, pred, ins = False
+            )
+            metrics = {
+                'Average Incr': avg_inc, 'Average Drop': avg_drop,
+                'Insertion':  inse, 'Deletion': dele,
+                'inse_score': inse_score, 'dele_score': dele_score,
+            }
+            
         heatmaps = []
         for i in range(len(saliency_map)):
             heatmap = cv2.applyColorMap(
@@ -115,16 +137,16 @@ class BaseCAM:
             heatmaps.append(cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB))
         heatmaps = np.asarray(heatmaps)
         cam_np = np.uint8(img_np * (1 - mask_rate) + heatmaps * mask_rate)
-        return cam_np, pred, prob
+        return cam_np, pred, prob, metrics
     
-    def calc_avg_inc_drop(self, img: torch.Tensor, use_softmax: bool = True):
-        saliency_maps, pred, _ = self.generate_saliency_map(img)
-        eval_maps = torch.as_tensor(saliency_maps).unsqueeze(1) * img
-        
-        img_normalized = self.tfm(img.clone().detach().cpu())
-        eval_maps = self.tfm(eval_maps)
-        if img_normalized.dim() == 3:
-            img_normalized.unsqueeze_(0)     
+    def calc_avg_inc_drop(
+        self, 
+        img_normalized: torch.Tensor,
+        saliency_map: np.ndarray,
+        pred: torch.Tensor,
+        use_softmax: bool = True
+    ):
+        eval_maps = torch.as_tensor(saliency_map).unsqueeze(1) * img_normalized
         with torch.no_grad():
             Y = self._get_scores(img_normalized, use_softmax)
             O = self._get_scores(eval_maps, use_softmax)
@@ -140,22 +162,18 @@ class BaseCAM:
         tmp[tmp < 0] = 0
         avg_drop = (tmp / Yc).mean()
 
-        return avg_inc, avg_drop
+        return avg_inc.item(), avg_drop.item()
     
     def calc_causal_metric(
         self, 
-        img: torch.Tensor,
+        img_normalized: torch.Tensor,
+        saliency_map: np.ndarray,
+        pred: torch.Tensor,
         ins: bool = True,
     ):
-        img_normalized: torch.Tensor = self.tfm(img.clone().detach().cpu())
-        if img_normalized.dim() == 3:
-            img_normalized.unsqueeze_(0)
-        
-        tot_pix = np.prod(img.shape[-2:])
-        change_pix = img.shape[-1] * 2
+        tot_pix = np.prod(img_normalized.shape[-2:])
+        change_pix = img_normalized.shape[-1] * 2
         n_steps = (tot_pix + change_pix - 1) // change_pix
-        
-        saliency_map, pred, _ = self.generate_saliency_map(img)
         salient_order = np.flip(
             np.argsort(saliency_map.reshape(-1, tot_pix), axis = 1), 
             axis = -1
@@ -183,7 +201,7 @@ class BaseCAM:
                 
         x_axis = np.linspace(0, 1, n_steps + 1)
         metrics = [auc(x_axis, all_scores[:, i]) for i in range(len(img_normalized))]
-        return np.mean(metrics), all_scores
+        return np.mean(metrics), all_scores.mean(axis = 1)
 
     @torch.no_grad()
     def model_predict(
@@ -202,12 +220,8 @@ class BaseCAM:
     
     def generate_saliency_map(
         self, 
-        img: torch.Tensor,
-    ) -> Tuple[np.ndarray, int, float]:
-        img_normalized = self.tfm(img.clone().detach().cpu())
-        if img_normalized.dim() == 3:
-            img_normalized.unsqueeze_(0)
-        
+        img_normalized: torch.Tensor,
+    ) -> Tuple[np.ndarray, int, float]:        
         # extract_features
         self.features = []
         target_layer = dict([*self.model.named_children()])[self.target_layer]
