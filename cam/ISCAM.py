@@ -28,30 +28,30 @@ class ISCAM(BaseCAM):
     ) -> torch.Tensor:
         n = 10
         with torch.no_grad():
-            upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
+            upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps).cpu()
             H = self.normalize_featuremaps(upsample_featuremaps)
-            mask_imgs = img_normalized.unsqueeze(1).to(self.device) * H.unsqueeze(2).to(self.device)
+            mask_imgs = img_normalized.unsqueeze(1) * H.unsqueeze(2)
             
             baseline = torch.zeros_like(img_normalized[0].unsqueeze(0)).to(self.device)
             self.model.to(self.device)
             baseline_out = self.model(baseline)
             cic_tot = torch.zeros((
                 H.shape[0], H.shape[1], baseline_out.shape[1]
-            )).to(self.device)
+            ))
             M = torch.zeros_like(mask_imgs)
             for i in range(n):
                 M = M + mask_imgs * i / n
                 for j in range(len(cic_tot)):
-                    cic_tot[j] += self.model(M[j]) - baseline_out
+                    cic_tot[j] += (self.model(M[j].to(self.device)) - baseline_out).cpu()
             cic_mean = cic_tot / n
                 
-            indices1 = torch.arange(len(pred)).reshape(-1, 1).to(self.device)
-            indices2 = pred.reshape(-1, 1).to(self.device)
+            indices1 = torch.arange(len(pred)).reshape(-1, 1)
+            indices2 = pred.reshape(-1, 1)
             weights = F.softmax(
                 cic_mean[indices1, :, indices2].squeeze(1), 
                 dim = 1
             ).unsqueeze(-1).unsqueeze(-1)
-            return (weights * self.featuremaps).sum(dim = 1)
+            return (weights.to(self.device) * self.featuremaps).sum(dim = 1)
             # saliency_maps = []
             
             # for i in range(len(img_normalized)):

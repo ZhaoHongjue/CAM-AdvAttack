@@ -24,14 +24,13 @@ class ScoreCAM(BaseCAM):
     @torch.no_grad()
     def _get_cic(self, img: torch.Tensor, upsample_featuremaps: torch.Tensor) -> torch.Tensor:
         H = self.normalize_featuremaps(upsample_featuremaps)
-        mask_imgs = img.unsqueeze(1).to(self.device) * H.unsqueeze(2).to(self.device)
+        mask_imgs = img.unsqueeze(1) * H.unsqueeze(2)
         baseline = torch.zeros_like(img[0].unsqueeze(0)).to(self.device)
         self.model.to(self.device)
         cics = []
         baseline_out = self.model(baseline)
         for i in range(len(img)):
-            # print('1', self.model(mask_imgs[i]).shape, baseline_out.shape)
-            cic = self.model(mask_imgs[i]) - baseline_out
+            cic = (self.model(mask_imgs[i].to(self.device)) - baseline_out).cpu()
             cics.append(cic)
         return torch.cat([cic.unsqueeze(0) for cic in cics])
     
@@ -40,12 +39,12 @@ class ScoreCAM(BaseCAM):
         img_normalized: torch.Tensor,
         pred: torch.Tensor,
     ) -> torch.Tensor:
-        upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
+        upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps).cpu()
         cics = self._get_cic(img_normalized, upsample_featuremaps)
-        indices1 = torch.arange(len(pred)).reshape(-1, 1).to(self.device)
-        indices2 = pred.reshape(-1, 1).to(self.device)
+        indices1 = torch.arange(len(pred)).reshape(-1, 1)
+        indices2 = pred.reshape(-1, 1)
         weights = F.softmax(cics[indices1, :, indices2].squeeze(1), dim = 1).unsqueeze(-1).unsqueeze(-1)
-        return (weights * self.featuremaps).sum(dim = 1)
+        return (weights.to(self.device) * self.featuremaps).sum(dim = 1)
         # with torch.no_grad():
         #     upsample_featuremaps = transforms.Resize(img_normalized.shape[-1])(self.featuremaps)
         #     H = self.normalize_featuremaps(upsample_featuremaps)
