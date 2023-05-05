@@ -1,6 +1,6 @@
-for model in mobilenetv3_small_050
+for model in mobilenetv3_large_100
 do
-    for dataset in FashionMNIST
+    for dataset in CIFAR10
     do
         for bs in 128
         do
