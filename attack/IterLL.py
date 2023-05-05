@@ -3,6 +3,8 @@ from torch import nn
 import numpy as np
 
 from .base import BaseAttack
+from tqdm import trange
+
 
 class IterLL(BaseAttack):
     '''
@@ -12,14 +14,31 @@ class IterLL(BaseAttack):
         super().__init__(model, cuda)
     
     def __call__(
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor,
+        max_iter: int = 10,
+        num_classes: int = 10,
+        attack_kwargs: dict = {}
+    ) -> torch.Tensor:
+        att_imgs = torch.zeros_like(imgs)
+        with trange(len(imgs)) as t:
+            for i in t:
+                att_imgs[i] = self.attack_one(
+                    imgs[i], num_classes, max_iter, **attack_kwargs
+                )
+        return att_imgs
+    
+    def attack_one(
         self, 
-        img_tensor: torch.Tensor,
+        img: torch.Tensor,
         num_classes: int, 
         max_iter: int = 5,
-        eps: float = 0.1
+        eps: float = 0.1,
+        **kwargs
     ) -> torch.Tensor:
         loss_fn = nn.CrossEntropyLoss()
-        img_clone = img_tensor.clone().detach().to(self.device)
+        img_clone = img.clone().detach().to(self.device)
         if img_clone.dim() == 3:
             img_clone.unsqueeze_(0)
         
@@ -43,7 +62,7 @@ class IterLL(BaseAttack):
             loss.backward()
             
             grad = img_clone.grad
-            delta = eps / (k+1) * (grad.sign()).reshape_as(img_tensor)
+            delta = eps / (k+1) * (grad.sign()).reshape_as(img)
             img_clone = img_clone - delta
             img_clone = torch.clamp(img_clone, 0, 1)
         return img_clone.cpu().detach()

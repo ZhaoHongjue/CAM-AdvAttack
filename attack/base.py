@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 
 import numpy as np
+from tqdm import trange
 
 class BaseAttack:
     def __init__(
@@ -20,8 +21,14 @@ class BaseAttack:
         self.model.to(self.device)
         
     def __call__(
-        self, 
-        img_tensor: torch.Tensor, 
-        eps: float
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor = None,
+        max_iter: int = None,
+        num_classes: int = None,
+        attack_kwargs: dict = None
     ) -> torch.Tensor:
+        pass
+        
+    def attack_one(self, img: torch.Tensor, **kwargs) -> torch.Tensor:
         raise NotImplementedError

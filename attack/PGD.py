@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from .base import BaseAttack
+from tqdm import trange
 
 class PGD(BaseAttack):
     '''
@@ -12,14 +13,31 @@ class PGD(BaseAttack):
     '''
     def __init__(self, model: nn.Module, cuda: int = None) -> None:
         super().__init__(model, cuda)
-        
+    
     def __call__(
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor,
+        max_iter: int = 10,
+        num_classes: int = None,
+        attack_kwargs: dict = {}
+    ) -> torch.Tensor:
+        att_imgs = torch.zeros_like(imgs)
+        with trange(len(imgs)) as t:
+            for i in t:
+                att_imgs[i] = self.attack_one(
+                    imgs[i], labels[i], max_iter, **attack_kwargs
+                )
+        return att_imgs
+    
+    def attack_one(
         self, 
         img_tensor: torch.Tensor,
         label: int, 
         max_iter: int = 10,
         alpha: float = 2/255,
         eps: float = 0.2,
+        **kwargs
     ) -> torch.Tensor:
         loss_fn = nn.CrossEntropyLoss()
         img_clone = img_tensor.clone().detach().to(self.device)

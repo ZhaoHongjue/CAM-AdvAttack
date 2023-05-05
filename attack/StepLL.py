@@ -3,6 +3,8 @@ from torch import nn
 import numpy as np
 
 from .base import BaseAttack
+from tqdm import trange
+
 
 class StepLL(BaseAttack):
     '''
@@ -12,10 +14,27 @@ class StepLL(BaseAttack):
         super().__init__(model, cuda)
         
     def __call__(
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor,
+        max_iter: int = 10,
+        num_classes: int = 10,
+        attack_kwargs: dict = {}
+    ) -> torch.Tensor:
+        att_imgs = torch.zeros_like(imgs)
+        with trange(len(imgs)) as t:
+            for i in t:
+                att_imgs[i] = self.attack_one(
+                    imgs[i], num_classes, **attack_kwargs
+                )
+        return att_imgs
+        
+    def attack_one(
         self, 
         img_tensor: torch.Tensor,
         num_class: int, 
-        eps: float = 0.1
+        eps: float = 0.1,
+        **kwargs
     ) -> torch.Tensor:
         loss_fn = nn.CrossEntropyLoss()
         img_clone = img_tensor.clone().detach().to(self.device)

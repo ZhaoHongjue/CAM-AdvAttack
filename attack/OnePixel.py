@@ -6,6 +6,7 @@ import numpy as np
 from scipy.optimize import differential_evolution as diffevo
 
 from .base import BaseAttack
+from tqdm import trange
 
 class OnePixel(BaseAttack):
     '''
@@ -44,11 +45,28 @@ class OnePixel(BaseAttack):
             return prob
     
     def __call__(
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor,
+        max_iter: int = 10,
+        num_classes: int = None,
+        attack_kwargs: dict = {}
+    ) -> torch.Tensor:
+        att_imgs = torch.zeros_like(imgs)
+        with trange(len(imgs)) as t:
+            for i in t:
+                att_imgs[i] = self.attack_one(
+                    imgs[i], labels[i], max_iter, **attack_kwargs
+                )
+        return att_imgs
+    
+    def attack_one(
         self, 
         img_tensor: torch.Tensor,
         label: int, 
         maxiter: int = 100, 
-        popsize: int = 400
+        popsize: int = 400,
+        **kwargs
     ) -> torch.Tensor:
         bounds = [
             (0, img_tensor.shape[-2]), 

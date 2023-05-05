@@ -95,7 +95,8 @@ class BaseCAM:
         self, 
         img: torch.Tensor,
         mask_rate: float = 0.4, 
-        metric: bool = True
+        metric: bool = True,
+        saliency: bool = False
     ) -> Tuple[np.ndarray, int, float]:
         # Generate Numpy Image
         metrics = {}
@@ -137,7 +138,10 @@ class BaseCAM:
             heatmaps.append(cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB))
         heatmaps = np.asarray(heatmaps)
         cam_np = np.uint8(img_np * (1 - mask_rate) + heatmaps * mask_rate)
-        return cam_np, pred, prob, metrics
+        if not saliency:
+            return cam_np, pred, prob, metrics
+        else:
+            return cam_np, saliency_map, pred, prob, metrics 
     
     def calc_avg_inc_drop(
         self, 

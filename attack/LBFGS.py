@@ -1,10 +1,10 @@
 import torch
 from torch import nn
 from scipy.optimize import fmin_l_bfgs_b as lbfgsb
-# from ._lbfgs import fmin_l_bfgs_b as lbfgsb
 import numpy as np
 
 from .base import BaseAttack
+from tqdm import trange
 
 class LBFGS(BaseAttack):
     '''
@@ -43,12 +43,30 @@ class LBFGS(BaseAttack):
         loss.backward()
         grad: np.ndarray = perturb.grad.clone().numpy().reshape(-1).astype(np.float64)
         return loss.item(), grad
- 
+    
     def __call__(
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor,
+        max_iter: int = 10,
+        num_classes: int = 10,
+        attack_kwargs: dict = {}
+    ) -> torch.Tensor:
+        att_imgs = torch.zeros_like(imgs)
+        target_clses = (labels + 1) % num_classes 
+        with trange(len(imgs)) as t:
+            for i in t:
+                att_imgs[i] = self.attack_one(
+                    imgs[i], target_clses[i], **attack_kwargs
+                )
+        return att_imgs
+    
+    def attack_one(
         self, 
         img_tensor: torch.Tensor,
         target_cls: int,
-        c: float = 0.1
+        c: float = 0.1,
+        **kwargs
     ) -> torch.Tensor:
         pixel_num = np.prod(img_tensor.shape)
         img_pixes = img_tensor.reshape(-1, 1).cpu().numpy()

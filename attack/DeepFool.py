@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from .base import BaseAttack
+from tqdm import trange
 
 class DeepFool(BaseAttack):
     '''
@@ -12,14 +13,29 @@ class DeepFool(BaseAttack):
     '''
     def __init__(self, model: nn.Module, cuda: int = None) -> None:
         super().__init__(model, cuda)
-        
+    
     def __call__(
-        self, 
-        img_tensor: torch.Tensor,
-        num_classes: int,
-        max_iter: int = 100
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor = None,
+        max_iter: int = 100,
+        num_classes: int = 10,
+        attack_kwargs: dict = {}
     ) -> torch.Tensor:
-        img_clone, i = img_tensor.clone(), 0
+        att_imgs = torch.zeros_like(imgs)
+        with trange(len(imgs)) as t:
+            for i in t:
+                att_imgs[i] = self.attack_one(imgs[i], num_classes, max_iter)
+        return att_imgs
+    
+    def attack_one(
+        self, 
+        img: torch.Tensor,
+        num_classes: int,
+        max_iter: int = 100,
+        **kwargs
+    ) -> torch.Tensor:
+        img_clone, i = img.clone(), 0
         img_clone = img_clone.to(self.device)
         if img_clone.dim() == 3:
             img_clone.unsqueeze_(0)

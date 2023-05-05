@@ -39,7 +39,7 @@ class UniPerturb(BaseAttack):
     def __call__(
         self, 
         imgs: torch.Tensor,
-        num_class: int,
+        num_classes: int,
         step: int = 100,
         perturb_norm: float = 12.5,
         norm_mode: str = 'Euc',
@@ -59,7 +59,7 @@ class UniPerturb(BaseAttack):
         while err_rate < 1 - acc and i <= max_iter:
             for img in imgs:
                 single_perturb = self.calc_perturb(
-                    img + perturb, num_class, step
+                    img + perturb, num_classes, step
                 ).to(self.device)
                 # print(single_perturb.norm())
                 perturb = self.project_perturb(
@@ -76,7 +76,7 @@ class UniPerturb(BaseAttack):
     def calc_perturb(
         self,
         img_tensor: torch.Tensor,
-        num_class: int,
+        num_classes: int,
         step: int
     ) -> torch.Tensor:
         img_clone, i = img_tensor.clone(), 0
@@ -104,7 +104,7 @@ class UniPerturb(BaseAttack):
             logits[0, label].backward(retain_graph = True)
             grad_raw = img_clone.grad.clone()
             
-            for k in range(num_class):
+            for k in range(num_classes):
                 if k == label: continue
                 self.model.zero_grad()
                 if img_clone.grad is not None:

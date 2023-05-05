@@ -2,6 +2,7 @@ import torch
 from torch import nn
 
 from .base import BaseAttack
+from tqdm import trange
 
 class NIFGSM(BaseAttack):
     '''
@@ -11,12 +12,29 @@ class NIFGSM(BaseAttack):
         super().__init__(model, cuda)
     
     def __call__(
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor,
+        max_iter: int = 10,
+        num_classes: int = None,
+        attack_kwargs: dict = {}
+    ) -> torch.Tensor:
+        att_imgs = torch.zeros_like(imgs)
+        with trange(len(imgs)) as t:
+            for i in t:
+                att_imgs[i] = self.attack_one(
+                    imgs[i], labels[i], max_iter, **attack_kwargs
+                )
+        return att_imgs
+    
+    def attack_one(
         self, 
         img_tensor: torch.Tensor,
         label: int, 
         max_iter: int = 5,
         eps: float = 0.1,
         mu: float = 0.1,
+        **kwargs
     ) -> torch.Tensor:
         loss_fn = nn.CrossEntropyLoss()
         img_clone = img_tensor.clone().detach().to(self.device)

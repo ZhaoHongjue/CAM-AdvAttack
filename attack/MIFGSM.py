@@ -2,6 +2,8 @@ import torch
 from torch import nn
 
 from .base import BaseAttack
+from tqdm import trange
+
 
 class MIFGSM(BaseAttack):
     '''
@@ -11,18 +13,35 @@ class MIFGSM(BaseAttack):
         super().__init__(model, cuda)
     
     def __call__(
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor,
+        max_iter: int = 10,
+        num_classes: int = None,
+        attack_kwargs: dict = {}
+    ) -> torch.Tensor:
+        att_imgs = torch.zeros_like(imgs)
+        with trange(len(imgs)) as t:
+            for i in t:
+                att_imgs[i] = self.attack_one(
+                    imgs[i], labels[i], max_iter, **attack_kwargs
+                )
+        return att_imgs
+    
+    def attack_one(
         self, 
-        img_tensor: torch.Tensor,
+        img: torch.Tensor,
         label: int, 
         max_iter: int = 5,
         eps: float = 0.1,
         mu: float = 0.1,
+        **kwargs
     ) -> torch.Tensor:
         loss_fn = nn.CrossEntropyLoss()
-        img_clone = img_tensor.clone().detach().to(self.device)
+        img_clone = img.clone().detach().to(self.device)
         if img_clone.dim() == 3:
             img_clone.unsqueeze_(0)
-        g = torch.zeros_like(img_tensor).to(self.device)
+        g = torch.zeros_like(img).to(self.device)
         
         for k in range(max_iter):
             if k != 0:
@@ -35,7 +54,7 @@ class MIFGSM(BaseAttack):
             loss = loss_fn(Y_pred, Y_label)
             loss.backward()
             
-            grad = img_clone.grad.reshape_as(img_tensor)
+            grad = img_clone.grad.reshape_as(img)
             g = mu * g + grad / torch.linalg.norm(grad)
             
             delta = eps / (k+1) * (g.sign())
