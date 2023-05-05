@@ -1,4 +1,4 @@
-for model in densenet121
+for model in efficientnet_b0
 do
     for dataset in Imagenette
     do
@@ -8,7 +8,7 @@ do
             do
                 for epochs in 100
                 do
-                    for seed in 0 1 2
+                    for seed in 0
                     do
                         for cuda in 0
                         do

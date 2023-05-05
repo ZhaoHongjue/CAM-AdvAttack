@@ -190,7 +190,7 @@ def create_model(model_mode: str, dataset: str) -> nn.Module:
             model.conv_stem = nn.Conv2d(
                 in_channels, 16, kernel_size = 3, stride = 1, padding = 2, bias = False
             )       
-    elif model_mode == 'densenet121':
+    elif model_mode == 'densenet121' or model_mode == 'efficientnet_b0':
         assert dataset == 'Imagenette'
     else: raise ValueError(f'{model_mode} is not supported!')
     return model
