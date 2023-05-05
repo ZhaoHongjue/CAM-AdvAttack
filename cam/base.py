@@ -245,7 +245,7 @@ class BaseCAM:
             raw_saliency_map.reshape(len(img_normalized), -1), 
             dim = 1
         ).values.reshape(-1, 1, 1)
-        raw_saliency_map = (raw_saliency_map - raw_min) / (raw_max - raw_min)
+        raw_saliency_map = (raw_saliency_map - raw_min) / (raw_max - raw_min + 1e-9)
         saliency_maps: torch.Tensor = transforms.Resize(img_normalized.shape[-1])(raw_saliency_map)
         # saliency_maps = saliency_maps.nan_to_num(0.0)
         
@@ -292,7 +292,7 @@ class BaseCAM:
         feat_reshape = upsample_featuremaps.reshape(upsample_featuremaps.shape[:2] + (-1,))
         maxs = feat_reshape.max(dim = -1).values.unsqueeze(-1).unsqueeze(-1)
         mins = feat_reshape.min(dim = -1).values.unsqueeze(-1).unsqueeze(-1)
-        H = (upsample_featuremaps - mins) / (maxs - mins + 1e-5)
+        H = (upsample_featuremaps - mins) / (maxs - mins + 1e-9)
         return H
         
     
