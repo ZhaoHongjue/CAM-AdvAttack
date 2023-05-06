@@ -15,6 +15,7 @@ import utils
 import cam
 
 def test_single_cam(cam_method, model_mode, dataset, cuda = 0, seed = 0, reload = False):
+    # Basic Settings
     if model_mode == 'resnet18': target_layer = 'layer4'
     elif model_mode == 'efficientnet_b0': target_layer = 'conv_head'
     elif model_mode == 'densenet121': target_layer = 'features'
@@ -23,8 +24,21 @@ def test_single_cam(cam_method, model_mode, dataset, cuda = 0, seed = 0, reload 
     
     if cam_method == 'CAM':
         assert model_mode == 'resnet18' or 'densenet121'
+        
+    df_pth = f'./thesis/cam_metrics/{dataset}/'
+    if not os.path.exists(df_pth):
+        os.makedirs(df_pth)
+        
+    cam_np_pth = f'thesis/cam_pics/{dataset}/'
+    if not os.path.exists(cam_np_pth):
+        os.makedirs(cam_np_pth)
+        
+    casual_metrics_pth = f'thesis/cam_casual_metrics/{dataset}/'
+    if not os.path.exists(casual_metrics_pth):
+        os.makedirs(casual_metrics_pth)
     fig_num = 100
 
+    # Model and test data load
     utils.set_random_seed(seed)
     trainer = Trainer(
         model_mode, dataset = dataset, bs = 128,
@@ -34,23 +48,27 @@ def test_single_cam(cam_method, model_mode, dataset, cuda = 0, seed = 0, reload 
     trainer.load()
     
     test_iter = generate_data_iter(dataset, batch_size = fig_num, mode = 'test')
-    imgs, labels = next(iter(test_iter))
+    imgs, _ = next(iter(test_iter))
     
-    df_pth = f'./thesis/cam_metrics/{dataset}/'
-    if not os.path.exists(df_pth):
-        os.makedirs(df_pth)
-        
-    cam_np_pth = f'thesis/cam_pics/{dataset}/'
-    if not os.path.exists(cam_np_pth):
-        os.makedirs(cam_np_pth)
-        
+    # Test
     mycam = eval(f'cam.{cam_method}')(trainer.model, dataset, target_layer, fc_layer, cuda = cuda)
     cam_imgs, _, __, metrics_cam = mycam(imgs, metric = True)
     metrics = {
         'Average Incr': metrics_cam['Average Incr'], 'Average Drop': metrics_cam['Average Drop'],
         'Insertion':  metrics_cam['Insertion'], 'Deletion': metrics_cam['Deletion'],
     }
+    
+    # Save related results
     np.save(cam_np_pth + f'{cam_method}-{dataset}-{model_mode}-seed{seed}.npy', cam_imgs)
+    np.save(
+        casual_metrics_pth + f'Ins-{cam_method}-{dataset}-{model_mode}-seed{seed}.npy', 
+        metrics_cam['inse_score']
+    )
+    np.save(
+        casual_metrics_pth + f'Del-{cam_method}-{dataset}-{model_mode}-seed{seed}.npy', 
+        metrics_cam['dele_score']
+    )
+    
     print(tabulate(
         list(metrics.items()), tablefmt ='orgtbl'
     ))
@@ -77,7 +95,7 @@ if __name__ == '__main__':
     ))
     
     cams = [
-        'CAM', 'GradCAM', 'GradCAMpp', 'SMGradCAMpp', #'LayerCAM', 'XGradCAM', 'ScoreCAM',  'SSCAM', 'ISCAM'
+        'CAM', 'GradCAM', 'GradCAMpp', 'SMGradCAMpp', 'LayerCAM', 'XGradCAM', 'ScoreCAM',  'SSCAM', 'ISCAM'
     ]
     if args.method != 'all':
         assert args.method in cams
