@@ -42,11 +42,12 @@ class SSCAM(BaseCAM):
             for _ in range(n):
                 if self.smooth_mode == 'act':
                     H_noise = H + torch.normal(
-                        mean = 0, std = 2, size = H.shape
+                        mean = 0, std = 1, size = H.shape
                     )
-                    M = img_normalized.unsqueeze(1) * H_noise.unsqueeze(2)
+                    # M = img_normalized.unsqueeze(1) * H_noise.unsqueeze(2)
                     for i in range(len(img_normalized)):
-                        cic_tot[i] += (self.model(M[i].to(self.device)) - baseline_out).cpu()
+                        M = (img_normalized[i] * H_noise[i].unsqueeze(1)).to(self.device)
+                        cic_tot[i] += (self.model(M) - baseline_out).cpu()
                 elif self.smooth_mode == 'input':
                     M = img_normalized.unsqueeze(1) * H.unsqueeze(2)
                     M += torch.normal(
