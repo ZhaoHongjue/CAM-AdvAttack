@@ -9,7 +9,13 @@ from trainer import Trainer, generate_data_iter
 import utils
 import cam
 
-def test_single_cam(cam_method, model_mode, dataset, cuda = 0, seed = 0, reload = False):
+def test_single_cam(
+    cam_method: str, 
+    model_mode: str, 
+    dataset: str, 
+    cuda = 0, 
+    seed = 0
+):
     # Basic Settings
     if model_mode == 'resnet18': target_layer = 'layer4'
     elif model_mode == 'efficientnet_b0': target_layer = 'conv_head'
@@ -20,15 +26,15 @@ def test_single_cam(cam_method, model_mode, dataset, cuda = 0, seed = 0, reload 
     if cam_method == 'CAM':
         assert model_mode == 'resnet18' or 'densenet121'
         
-    df_pth = f'./thesis/cam_metrics/{dataset}/'
+    df_pth = f'./thesis/cam/cam_metrics/{dataset}/'
     if not os.path.exists(df_pth):
         os.makedirs(df_pth)
         
-    cam_np_pth = f'thesis/cam_pics/{dataset}/'
+    cam_np_pth = f'thesis/cam/cam_pics/{dataset}/'
     if not os.path.exists(cam_np_pth):
         os.makedirs(cam_np_pth)
         
-    casual_metrics_pth = f'thesis/cam_casual_metrics/{dataset}/'
+    casual_metrics_pth = f'thesis/cam/cam_casual_metrics/{dataset}/'
     if not os.path.exists(casual_metrics_pth):
         os.makedirs(casual_metrics_pth)
     fig_num = 100
@@ -69,7 +75,7 @@ def test_single_cam(cam_method, model_mode, dataset, cuda = 0, seed = 0, reload 
     ))
     
     metric_df_pth = df_pth + f'CAM-{model_mode}-{dataset}-seed{seed}.csv'
-    if not os.path.exists(metric_df_pth) or reload:
+    if not os.path.exists(metric_df_pth):
         metrics_df = pd.DataFrame(list(metrics.values()), columns = [cam_method], index = list(metrics.keys()))
     else:
         metrics_df = pd.read_csv(metric_df_pth, index_col = 0)
@@ -83,7 +89,6 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default = 'FashionMNIST')
     parser.add_argument('--cuda', default = 0, type = int)
     parser.add_argument('--seed', default = 0, type = int)
-    parser.add_argument('--reload', action = 'store_true')
     args = parser.parse_args()
     print(tabulate(
         list(vars(args).items()), headers = ['attr', 'setting'], tablefmt ='orgtbl'
@@ -95,7 +100,7 @@ if __name__ == '__main__':
     if args.method != 'all':
         assert args.method in cams
         print('######################################')
-        test_single_cam(args.method, args.model_mode, args.dataset, args.cuda, args.seed, args.reload)
+        test_single_cam(args.method, args.model_mode, args.dataset, args.cuda, args.seed)
     else:
         print('######################################')
         for method in cams:
