@@ -1,4 +1,4 @@
-for model in efficientnet_b0
+for model in densenet121
 do
     for dataset in Imagenette
     do
@@ -8,9 +8,9 @@ do
             do
                 for epochs in 100
                 do
-                    for seed in 0
+                    for seed in 2
                     do
-                        for cuda in 0
+                        for cuda in 1
                         do
                             nohup python train.py       \
                             --model_mode    $model      \
