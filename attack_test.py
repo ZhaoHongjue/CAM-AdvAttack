@@ -187,9 +187,7 @@ def test_single_advatt(
     suc_imgs: torch.Tensor,
     suc_labels: torch.Tensor,
     pths: List[str],
-    cuda = 0, 
     seed = 0, 
-    reload = False
 ):
     metric_pth, attack_pth, indices_pth = pths
     att_name = advatt.__class__.__name__
@@ -317,20 +315,22 @@ if __name__ == '__main__':
     if args.method != 'all':
         advatt = eval(f'attack.{args.method}')(trainer.model, args.cuda)
         test_single_advatt(
-            advatt, args.model_mode, args.dataset, scorecam, suc_imgs, suc_labels, pths, args.cuda, args.seed
+            advatt, args.model_mode, args.dataset, scorecam, suc_imgs,
+            suc_labels, pths, args.seed, 
         )
     else:
         attacks = [
             'FGSM', 'FGM', 'StepLL', 
-            # 'IFGSM', 'MIFGSM', 'NIFGSM', 'IterLL', 'PGD',
-            # 'DeepFool', 'LBFGS'
+            'IFGSM', 'MIFGSM', 'NIFGSM', 'IterLL', 'PGD',
+            'DeepFool', 'LBFGS'
         ]
         for att in attacks:
             print('######################################################')
             print(att)
             advatt = eval(f'attack.{att}')(trainer.model, args.cuda)
             test_single_advatt(
-                advatt, args.model_mode, args.dataset, scorecam, suc_imgs, suc_labels, pths, args.cuda, args.seed
+                advatt, args.model_mode, args.dataset, scorecam, suc_imgs,
+                suc_labels, pths, args.seed, 
             )
     
     

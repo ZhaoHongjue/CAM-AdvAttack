@@ -51,13 +51,12 @@ class BaseCAM:
         dataset: str,
         target_layer: str,
         fc_layer: str = None,
-        use_relu: bool = False,
         cuda: int = None
     ) -> None:
         # set basic attributes
         self.model = model
         self.tfm = transforms.Normalize(mean[dataset], std[dataset])
-        self.use_relu = use_relu
+        self.use_relu = False
         layer_names = self._get_layer_names()
         
         # Error detect

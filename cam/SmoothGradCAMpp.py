@@ -17,6 +17,7 @@ class SMGradCAMpp(BaseCAM):
         super().__init__(
             model, dataset, target_layer, fc_layer, use_relu, cuda
         )
+        self.use_relu = True
         
     def _get_raw_saliency_map(
         self, 

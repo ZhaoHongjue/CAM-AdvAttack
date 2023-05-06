@@ -11,12 +11,12 @@ class LayerCAM(BaseCAM):
         dataset: str,
         target_layer: str, 
         fc_layer: str = None, 
-        use_relu: bool = False, 
         cuda: int = None
     ) -> None:
         super().__init__(
-            model, dataset, target_layer, fc_layer, use_relu, cuda
+            model, dataset, target_layer, fc_layer, cuda
         )
+        self.use_relu = True
         
     def _get_raw_saliency_map(
         self, 
