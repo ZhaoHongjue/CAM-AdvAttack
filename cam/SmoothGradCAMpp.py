@@ -15,7 +15,7 @@ class SMGradCAMpp(BaseCAM):
         cuda: int = None
     ) -> None:
         super().__init__(
-            model, dataset, target_layer, fc_layer, use_relu, cuda
+            model, dataset, target_layer, fc_layer, cuda
         )
         self.use_relu = True
         
