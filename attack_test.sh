@@ -2,8 +2,8 @@ for seed in 0 1 2
 do
     python attack_test.py                  \
     --method            all             \
-    --model_mode        resnet18        \
-    --dataset           CIFAR10    \
+    --model_mode       	densenet121	\
+    --dataset           Imagenette    \
     --seed $seed
     echo "Seed$seed Done!"
 done
