@@ -3,7 +3,7 @@ from torch import nn
 
 from .base import BaseAttack
 from tqdm import trange
-
+from math import ceil
 
 class IFGSM(BaseAttack):
     '''
@@ -32,9 +32,10 @@ class IFGSM(BaseAttack):
         self, 
         img: torch.Tensor,
         label: int, 
-        max_iter: int = 5,
         eps: float = 0.1,
     ) -> torch.Tensor:
+        max_iter = ceil(min(eps + 4, 1.25 * eps))
+        alpha = eps / max_iter
         loss_fn = nn.CrossEntropyLoss()
         img_clone = img.clone().detach().to(self.device)
         if img_clone.dim() == 3:
@@ -52,7 +53,7 @@ class IFGSM(BaseAttack):
             loss.backward()
             
             grad = img_clone.grad
-            delta = eps / (k+1) * (grad.sign()).reshape_as(img)
+            delta = alpha * (grad.sign()).reshape_as(img)
             img_clone = img_clone + delta
             img_clone = torch.clamp(img_clone, 0, 1)
         return img_clone.cpu().detach()
