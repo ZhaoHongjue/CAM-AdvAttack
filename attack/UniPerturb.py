@@ -3,7 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from .base import BaseAttack
-from .DeepFool import DeepFool
+from tqdm import trange
 
 class UniPerturb(BaseAttack):
     '''
@@ -11,8 +11,13 @@ class UniPerturb(BaseAttack):
     
     URL: https://openaccess.thecvf.com/content_cvpr_2017/html/Moosavi-Dezfooli_Universal_Adversarial_Perturbations_CVPR_2017_paper.html
     '''
-    def __init__(self, model: nn.Module, cuda: int = None) -> None:
-        super().__init__(model, cuda)
+    def __init__(
+        self, 
+        model: nn.Module,
+        dataset: str, 
+        cuda: int = None
+    ) -> None:
+        super().__init__(model, dataset, cuda)
              
     def project_perturb(
         self, 
@@ -33,18 +38,30 @@ class UniPerturb(BaseAttack):
     def predict_imgs(self, imgs: torch.Tensor) -> torch.Tensor:
         imgs_clone = imgs.clone().to(self.device)
         with torch.no_grad():
-            pred = F.softmax(self.model(imgs_clone), dim = 1).argmax(dim = 1)
+            pred = F.softmax(self.model(self.tfm(imgs_clone)), dim = 1).argmax(dim = 1)
         return pred
-        
+    
     def __call__(
+        self,
+        imgs: torch.Tensor,
+        labels: torch.Tensor,
+        max_iter: int = 100,
+        num_classes: int = None,
+        attack_kwargs: dict = {}
+    ) -> torch.Tensor:
+        perturb = self.generate_peturb(imgs, num_classes, max_iter, **attack_kwargs)
+        return imgs + perturb
+    
+    def generate_peturb(
         self, 
         imgs: torch.Tensor,
         num_classes: int,
+        max_iter: int = 100,
         step: int = 100,
         perturb_norm: float = 12.5,
         norm_mode: str = 'Euc',
         acc: float = 0.2,
-        max_iter: int = 100,
+        **kwargs
     ) -> torch.Tensor:
         if imgs.dim() != 4:
             raise ValueError(
@@ -55,23 +72,23 @@ class UniPerturb(BaseAttack):
         raw_pred = self.predict_imgs(imgs)
         err_rate = 0
         
-        i = 0
-        while err_rate < 1 - acc and i <= max_iter:
-            for img in imgs:
-                single_perturb = self.calc_perturb(
-                    img + perturb, num_classes, step
-                ).to(self.device)
-                # print(single_perturb.norm())
-                perturb = self.project_perturb(
-                    perturb + single_perturb, 
-                    perturb_norm, 
-                    norm_mode
-                ).to(self.device)
-            pred = self.predict_imgs(imgs + perturb)
-            err_rate = (pred != raw_pred).sum().item() / len(pred)
-            print(f'err rate {err_rate}')
-            i+=1
-        return perturb
+        with trange(max_iter) as t:
+            for i in t:
+                for img in imgs:
+                    single_perturb = self.calc_perturb(
+                        img + perturb, num_classes, step
+                    ).to(self.device)
+                    # print(single_perturb.norm())
+                    perturb = self.project_perturb(
+                        perturb + single_perturb, 
+                        perturb_norm, 
+                        norm_mode
+                    ).to(self.device)
+                pred = self.predict_imgs(imgs + perturb)
+                err_rate = (pred != raw_pred).sum().item() / len(pred)
+                t.set_description(f'Err Rate: {err_rate:.4f}')
+                if err_rate > 1 - acc: break
+        return perturb.cpu().detach()
 
     def calc_perturb(
         self,
@@ -85,7 +102,7 @@ class UniPerturb(BaseAttack):
             img_clone.unsqueeze_(0)
             
         with torch.no_grad():
-            raw_logits = self.model(img_clone)
+            raw_logits = self.model(self.tfm(img_clone))
             label = torch.argmax(F.softmax(raw_logits, dim = 1)).item()
         perturbed_label = label
         
@@ -96,7 +113,7 @@ class UniPerturb(BaseAttack):
             img_clone.requires_grad_(True)
             if img_clone.grad is not None:
                 img_clone.grad.zero_()
-            logits: torch.Tensor = self.model(img_clone)
+            logits: torch.Tensor = self.model(self.tfm(img_clone))
             with torch.no_grad():
                 perturbed_label = F.softmax(logits, dim = 1).argmax().item()
                 if perturbed_label != label:

@@ -35,7 +35,7 @@ class LBFGS(BaseAttack):
         
         self.model.zero_grad()
         img_clone = img_clone.to(self.device)
-        Y_hat = self.model(img_clone)
+        Y_hat = self.model(self.tfm(img_clone))
         Y_label = torch.tensor(
             [target_cls], dtype = torch.long
         ).to(self.device)

@@ -6,8 +6,13 @@ from tqdm import trange
 
 
 class CW(BaseAttack):
-    def __init__(self, model: nn.Module, cuda: int = None) -> None:
-        super().__init__(model, cuda)
+    def __init__(
+        self, 
+        model: nn.Module,
+        dataset: str, 
+        cuda: int = None
+    ) -> None:
+        super().__init__(model, dataset, cuda)
         self.loss_fn = nn.CrossEntropyLoss()
     
     def __call__(
@@ -28,7 +33,7 @@ class CW(BaseAttack):
         return att_imgs
     
     def f1(self, img_in, target_cls):
-        logits = self.model(img_in.unsqueeze(0).to(self.device))
+        logits = self.model(self.tfm(img_in.unsqueeze(0)).to(self.device))
         target_cls = torch.tensor([target_cls], dtype = torch.long).to(self.device)
         # return (1 - self.loss_fn(logits, target_cls))
         return self.loss_fn(logits, target_cls)

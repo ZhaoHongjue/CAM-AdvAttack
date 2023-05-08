@@ -11,8 +11,13 @@ class DeepFool(BaseAttack):
     
     URL: https://openaccess.thecvf.com/content_cvpr_2016/html/Moosavi-Dezfooli_DeepFool_A_Simple_CVPR_2016_paper.html
     '''
-    def __init__(self, model: nn.Module, cuda: int = None) -> None:
-        super().__init__(model, cuda)
+    def __init__(
+        self, 
+        model: nn.Module,
+        dataset: str, 
+        cuda: int = None
+    ) -> None:
+        super().__init__(model, dataset, cuda)
     
     def __call__(
         self,
@@ -41,7 +46,7 @@ class DeepFool(BaseAttack):
             img_clone.unsqueeze_(0)
             
         with torch.no_grad():
-            raw_logits = self.model(img_clone)
+            raw_logits = self.model(self.tfm(img_clone))
             label = torch.argmax(F.softmax(raw_logits, dim = 1)).item()
         perturbed_label = label
         
@@ -51,7 +56,7 @@ class DeepFool(BaseAttack):
             img_clone.requires_grad_(True)
             if img_clone.grad is not None:
                 img_clone.grad.zero_()
-            logits: torch.Tensor = self.model(img_clone)
+            logits: torch.Tensor = self.model(self.tfm(img_clone))
             with torch.no_grad():
                 perturbed_label = F.softmax(logits, dim = 1).argmax().item()
                 # print(f'perturbed_label: {perturbed_label}, label: {label}, i: {i}')

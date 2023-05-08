@@ -8,8 +8,13 @@ class NIFGSM(BaseAttack):
     '''
     Boosting Adversarial Attacks With Momentum
     '''
-    def __init__(self, model: nn.Module, cuda: int = None) -> None:
-        super().__init__(model, cuda)
+    def __init__(
+        self, 
+        model: nn.Module,
+        dataset: str, 
+        cuda: int = None
+    ) -> None:
+        super().__init__(model, dataset, cuda)
     
     def __call__(
         self,
@@ -51,7 +56,7 @@ class NIFGSM(BaseAttack):
             img_nes.requires_grad_(True)
             
             self.model.zero_grad()
-            Y_pred = self.model(img_nes)
+            Y_pred = self.model(self.tfm(img_nes))
             Y_label = torch.tensor([label], dtype = torch.long).to(self.device)
             loss = loss_fn(Y_pred, Y_label)
             loss.backward()

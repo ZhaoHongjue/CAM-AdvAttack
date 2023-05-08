@@ -6,8 +6,13 @@ from tqdm import trange
 
 
 class FGM(BaseAttack):
-    def __init__(self, model: nn.Module, cuda: int = None) -> None:
-        super().__init__(model, cuda)
+    def __init__(
+        self, 
+        model: nn.Module,
+        dataset: str, 
+        cuda: int = None
+    ) -> None:
+        super().__init__(model, dataset, cuda)
     
     def __call__(
         self,
@@ -39,7 +44,7 @@ class FGM(BaseAttack):
             img_clone.unsqueeze_(0)
         img_clone.requires_grad_(True)
         
-        Y_pred = self.model(img_clone)
+        Y_pred = self.model(self.tfm(img_clone))
         Y_label = torch.tensor([label], dtype = torch.long).to(self.device)
         loss = loss_fn(Y_pred, Y_label)
         loss.backward()

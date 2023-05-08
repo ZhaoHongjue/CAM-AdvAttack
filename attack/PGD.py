@@ -11,8 +11,13 @@ class PGD(BaseAttack):
     
     URL: http://arxiv.org/abs/1706.06083
     '''
-    def __init__(self, model: nn.Module, cuda: int = None) -> None:
-        super().__init__(model, cuda)
+    def __init__(
+        self, 
+        model: nn.Module,
+        dataset: str, 
+        cuda: int = None
+    ) -> None:
+        super().__init__(model, dataset, cuda)
     
     def __call__(
         self,
@@ -48,7 +53,7 @@ class PGD(BaseAttack):
         for _ in range(max_iter):
             self.model.zero_grad()
             img_clone.requires_grad_(True)
-            Y_pred = self.model(img_clone)
+            Y_pred = self.model(self.tfm(img_clone))
             Y_label = torch.tensor(
                 [label], dtype = torch.long
             ).to(self.device)
