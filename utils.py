@@ -119,11 +119,13 @@ def model_predict(
     '''
     if normalize_mode is not None:
         mean = {
+            'FashionMNIST': 0,
             'CIFAR10': (0.4914, 0.4822, 0.4465),
             'CIFAR100': (0.5071, 0.4867, 0.4408),
             'Imagenette': (0.485, 0.456, 0.406),
         }
         std = {
+            'FashionMNIST': 1,
             'CIFAR10': (0.2023, 0.1994, 0.2010),
             'CIFAR100': (0.2675, 0.2565, 0.2761),
             'Imagenette': (0.229, 0.224, 0.225),

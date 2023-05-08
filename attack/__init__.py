@@ -18,3 +18,4 @@ from .UniPerturb import UniPerturb
 
 from .OnePixel import OnePixel
 from .LBFGS import LBFGS
+from .CW import CW

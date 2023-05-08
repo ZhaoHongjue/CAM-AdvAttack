@@ -37,6 +37,7 @@ class MIFGSM(BaseAttack):
         mu: float = 0.1,
         **kwargs
     ) -> torch.Tensor:
+        alpha = eps / max_iter
         loss_fn = nn.CrossEntropyLoss()
         img_clone = img.clone().detach().to(self.device)
         if img_clone.dim() == 3:
@@ -57,7 +58,7 @@ class MIFGSM(BaseAttack):
             grad = img_clone.grad.reshape_as(img)
             g = mu * g + grad / torch.linalg.norm(grad)
             
-            delta = eps / (k+1) * (g.sign())
+            delta = alpha * (g.sign())
             img_clone = img_clone + delta
             img_clone = torch.clamp(img_clone, 0, 1)
         return img_clone.cpu().detach()

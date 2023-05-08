@@ -32,9 +32,9 @@ class IFGSM(BaseAttack):
         self, 
         img: torch.Tensor,
         label: int, 
+        max_iter: int,
         eps: float = 0.1,
     ) -> torch.Tensor:
-        max_iter = ceil(min(eps + 4, 1.25 * eps))
         alpha = eps / max_iter
         loss_fn = nn.CrossEntropyLoss()
         img_clone = img.clone().detach().to(self.device)

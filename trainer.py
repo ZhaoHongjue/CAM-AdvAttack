@@ -236,7 +236,7 @@ def generate_data_iter(
         train = True if mode == 'train' else False
         return data.DataLoader(
             eval(dataset)(
-                root = data_pth, train = train, download = True, transform = tfm
+                root = data_pth, train = train, download = False, transform = tfm
             ),
             batch_size = batch_size, shuffle = train
         )

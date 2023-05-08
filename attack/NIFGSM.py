@@ -36,6 +36,7 @@ class NIFGSM(BaseAttack):
         mu: float = 0.1,
         **kwargs
     ) -> torch.Tensor:
+        alpha = eps / max_iter
         loss_fn = nn.CrossEntropyLoss()
         img_clone = img_tensor.clone().detach().to(self.device)
         if img_clone.dim() == 3:
@@ -45,7 +46,6 @@ class NIFGSM(BaseAttack):
         for k in range(max_iter):
             if k != 0:
                 img_clone = img_clone.clone().detach()
-            alpha = eps / (k+1)
             
             img_nes = img_clone + alpha * mu * g
             img_nes.requires_grad_(True)

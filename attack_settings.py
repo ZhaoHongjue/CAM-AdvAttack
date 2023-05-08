@@ -19,17 +19,17 @@ settings = {
         'IFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.015},
+            'attack_kwargs': {'eps': 0.05},
         },
         'MIFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.015},
+            'attack_kwargs': {'eps': 0.05},
         },
         'NIFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.015},
+            'attack_kwargs': {'eps': 0.05},
         },
         'PGD': {
             'max_iter': 10,
@@ -55,6 +55,10 @@ settings = {
             'max_iter': 100,
             'num_classes': num_classes,
             'attack_kwargs': {'popsize': 400},
+        },
+        'CW': {
+            'max_iter': 100, 
+            'attack_kwargs': {'c': 0.05, 'lr': 0.01}
         }
     },
     
@@ -77,17 +81,17 @@ settings = {
         'IFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.01},
+            'attack_kwargs': {'eps': 0.03},
         },
         'MIFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.01},
+            'attack_kwargs': {'eps': 0.03},
         },
         'NIFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.01},
+            'attack_kwargs': {'eps': 0.03},
         },
         'PGD': {
             'max_iter': 10,
@@ -113,7 +117,11 @@ settings = {
             'max_iter': 100,
             'num_classes': num_classes,
             'attack_kwargs': {'popsize': 400},
-        }
+        },
+        'CW': {
+            'max_iter': 100, 
+            'attack_kwargs': {'c': 3, 'lr': 0.02}
+        },
     },
     
     'Imagenette': {
@@ -135,17 +143,17 @@ settings = {
         'IFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.01},
+            'attack_kwargs': {'eps': 0.03},
         },
         'MIFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.01},
+            'attack_kwargs': {'eps': 0.03},
         },
         'NIFGSM': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'eps': 0.01},
+            'attack_kwargs': {'eps': 0.03},
         },
         'PGD': {
             'max_iter': 10,
