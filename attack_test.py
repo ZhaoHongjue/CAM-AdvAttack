@@ -42,7 +42,7 @@ def test_single_advatt(
     
     # Success Rate
     att_indices = att_preds != suc_labels
-    np.save(indices_pth + f'{att_name}-{dataset}-{model_mode}.npy', att_indices.cpu().numpy())
+    np.save(indices_pth + f'{att_name}-{dataset}-{model_mode}-seed{seed}.npy', att_indices.cpu().numpy())
     success_rate = (att_indices.sum() / len(att_preds)).item()
     
     # delta norm
@@ -104,7 +104,6 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default = 'FashionMNIST')
     parser.add_argument('--cuda', default = 0, type = int)
     parser.add_argument('--seed', default = 0, type = int)
-    parser.add_argument('--reload', action = 'store_true')
     args = parser.parse_args()
     print(tabulate(
         list(vars(args).items()), headers = ['attr', 'setting'], tablefmt ='orgtbl'
@@ -146,14 +145,14 @@ if __name__ == '__main__':
     
     raw_preds, _ = scorecam.model_predict(scorecam.tfm(imgs))
     suc_indices = raw_preds == labels
-    np.save(indices_pth + f'suc-{args.dataset}-{args.model_mode}.npy', suc_indices.cpu().numpy())
+    np.save(indices_pth + f'suc-{args.dataset}-{args.model_mode}-seed{0}.npy', suc_indices.cpu().numpy())
     suc_imgs, suc_labels = imgs[suc_indices], labels[suc_indices]
     suc_cams, suc_saliency_maps, suc_preds, suc_probs, _ \
         = scorecam(suc_imgs, metric = False, saliency = True)
     
     pths = [metric_pth, attack_pth, indices_pth]
     if args.method != 'all':
-        advatt = eval(f'attack.{args.method}')(trainer.model, args.cuda)
+        advatt = eval(f'attack.{args.method}')(trainer.model, args.dataset, args.cuda)
         test_single_advatt(
             advatt, args.model_mode, args.dataset, scorecam, suc_imgs,
             suc_labels, pths, args.seed, 
@@ -162,12 +161,12 @@ if __name__ == '__main__':
         attacks = [
             'FGSM', 'FGM', 'StepLL', 
             'IFGSM', 'MIFGSM', 'NIFGSM', 'IterLL', 'PGD',
-            'DeepFool', 'LBFGS', 'OnePixel'
+            'DeepFool', 'LBFGS', 'CW', 'UniPerturb'
         ]
         for att in attacks:
             print('######################################################')
             print(att)
-            advatt = eval(f'attack.{att}')(trainer.model, args.cuda)
+            advatt = eval(f'attack.{att}')(trainer.model, args.dataset, args.cuda)
             test_single_advatt(
                 advatt, args.model_mode, args.dataset, scorecam, suc_imgs,
                 suc_labels, pths, args.seed, 

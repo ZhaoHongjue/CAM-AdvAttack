@@ -59,7 +59,12 @@ settings = {
         'CW': {
             'max_iter': 100, 
             'attack_kwargs': {'c': 0.05, 'lr': 0.01}
-        }
+        },
+        'UniPerturb': {
+            'num_classes': 10,
+            'max_iter': 150, 
+            'attack_kwargs': {'acc': 0.2, 'perturb_norm': 3}
+        },
     },
     
     'CIFAR10': {
@@ -122,6 +127,11 @@ settings = {
             'max_iter': 100, 
             'attack_kwargs': {'c': 3, 'lr': 0.02}
         },
+        'UniPerturb': {
+            'num_classes': 10,
+            'max_iter': 150, 
+            'attack_kwargs': {'acc': 0.2, 'perturb_norm': 5}
+        },
     },
     
     'Imagenette': {
@@ -173,12 +183,21 @@ settings = {
         'LBFGS': {
             'max_iter': 10,
             'num_classes': num_classes,
-            'attack_kwargs': {'c': 0.3},
+            'attack_kwargs': {'c': 0.0003},
         },
         'OnePixel': {
             'max_iter': 100,
             'num_classes': num_classes,
             'attack_kwargs': {'popsize': 400},
-        }
+        },
+        'CW': {
+            'max_iter': 300, 
+            'attack_kwargs': {'c': 0.1, 'lr':0.1}
+        },
+        'UniPerturb': {
+            'num_classes': 10,
+            'max_iter': 150, 
+            'attack_kwargs': {'acc': 0.4, 'perturb_norm': 20}
+        },
     },
 }

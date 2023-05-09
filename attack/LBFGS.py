@@ -12,8 +12,13 @@ class LBFGS(BaseAttack):
     
     URL: http://arxiv.org/abs/1312.6199
     '''
-    def __init__(self, model: nn.Module, cuda: int = None) -> None:
-        super().__init__(model, cuda)
+    def __init__(
+        self, 
+        model: nn.Module,
+        dataset: str, 
+        cuda: int = None
+    ) -> None:
+        super().__init__(model, dataset, cuda)
         self.loss_fn = nn.CrossEntropyLoss()
     
     def predict(
